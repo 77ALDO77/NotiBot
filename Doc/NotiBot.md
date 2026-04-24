@@ -41,8 +41,8 @@ Motor de inteligencia para retener al usuario y ofrecer contenido relevante.
 
 | Componente | Tecnología Sugerida |
 | :--- | :--- |
-| **Backend** | Python (FastAPI / Django) |
-| **Frontend** | React / Next.js (Tailwind CSS para estética premium) |
+| **Backend** | Python Django |
+| **Frontend** | React / Next.js |
 | **Base de Datos** | PostgreSQL (Relacional) + Pinecone/ChromaDB (Vectorial para RAG) |
 | **IA / LLM** | OpenAI (GPT-4o) / Anthropic (Claude 3.5) / LangChain para Agentic Workflow |
 | **Scraping** | Scrapy / Playwright (para manejar JS dinámico) |

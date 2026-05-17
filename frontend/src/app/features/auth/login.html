@@ -1,0 +1,68 @@
+<section class="auth">
+  <div class="auth__card">
+    <div class="auth__brand">
+      <span class="auth__logo">LV</span>
+      <h1 class="headline-sm">LimaVoice</h1>
+    </div>
+    <p class="body-md auth__subtitle">Tu plataforma de noticias inteligentes de Lima y Callao</p>
+
+    <form class="auth__form" (submit)="$event.preventDefault(); handleSubmit()">
+      <div class="auth__field">
+        <label for="email" class="label-md">Correo electrónico</label>
+        <input
+          id="email"
+          type="email"
+          class="body-md auth__input"
+          [ngModel]="email()"
+          (ngModelChange)="email.set($event)"
+          placeholder="tu@email.com"
+          autocomplete="email"
+          required
+        />
+      </div>
+
+      <div class="auth__field">
+        <label for="password" class="label-md">Contraseña</label>
+        <div class="auth__password-wrapper">
+          <input
+            id="password"
+            [type]="showPassword() ? 'text' : 'password'"
+            class="body-md auth__input"
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event)"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          />
+          <button
+            type="button"
+            class="auth__password-toggle"
+            (click)="togglePassword()"
+            [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+          >
+            {{ showPassword() ? '🙈' : '👁' }}
+          </button>
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        class="auth__submit-btn label-md"
+        [disabled]="!email().trim() || !password().trim() || isLoading()"
+      >
+        @if (isLoading()) {
+          Ingresando…
+        } @else {
+          Ingresar
+        }
+      </button>
+    </form>
+
+    <div class="auth__footer">
+      <p class="label-sm">
+        ¿No tienes cuenta? <a routerLink="/login" class="auth__link">Regístrate</a>
+      </p>
+      <a routerLink="/" class="label-sm auth__link">← Volver a la portada</a>
+    </div>
+  </div>
+</section>

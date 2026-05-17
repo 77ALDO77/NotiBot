@@ -19,7 +19,7 @@ export class AiChat {
     {
       id: 'm1',
       role: 'assistant',
-      content: '¡Hola! Soy LimaVoice AI, tu asistente de noticias. Puedo ayudarte a encontrar información, resumir artículos y responder preguntas sobre lo que está pasando en Lima y Callao. ¿En qué puedo ayudarte hoy?',
+      content: '¡Hola! Soy NotiBot AI, tu asistente de noticias. Puedo ayudarte a encontrar información, resumir artículos y responder preguntas sobre lo que está pasando en Lima y Callao. ¿En qué puedo ayudarte hoy?',
       time: 'Ahora',
     },
   ]);

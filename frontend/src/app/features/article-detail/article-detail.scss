@@ -1,0 +1,151 @@
+@use '../../../styles/tokens' as *;
+
+.article {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: $sp-stack-lg $sp-gutter;
+
+  &__back {
+    margin-bottom: $sp-stack-lg;
+
+    a {
+      color: $color-text-secondary;
+      text-decoration: none;
+      transition: color $transition-fast;
+
+      &:hover {
+        color: $color-brand;
+      }
+    }
+  }
+
+  &__header {
+    margin-bottom: $sp-stack-lg;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: $sp-stack-sm;
+    margin-bottom: $sp-stack-md;
+    flex-wrap: wrap;
+  }
+
+  &__category {
+    color: $color-brand;
+    background: $color-primary-fixed;
+    padding: 2px 10px;
+    border-radius: $radius-full;
+  }
+
+  &__source,
+  &__time {
+    color: $color-text-secondary;
+  }
+
+  &__headline {
+    margin-bottom: $sp-stack-md;
+  }
+
+  &__author {
+    color: $color-text-secondary;
+  }
+
+  &__body {
+    p {
+      margin-bottom: $sp-stack-md;
+      color: $color-text-primary;
+      line-height: $lh-body-lg;
+    }
+  }
+
+  &__reactions-bar {
+    display: flex;
+    align-items: center;
+    gap: $sp-stack-sm;
+    flex-wrap: wrap;
+    padding: $sp-stack-md 0;
+    margin: $sp-stack-lg 0;
+    border-top: 1px solid $color-divider;
+    border-bottom: 1px solid $color-divider;
+  }
+
+  &__reaction {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    border: 1px solid $color-divider;
+    border-radius: $radius-full;
+    background: none;
+    cursor: pointer;
+    transition: background $transition-fast, border-color $transition-fast, color $transition-fast;
+    font-family: inherit;
+
+    &:hover {
+      background: $color-surface-container;
+      border-color: $color-outline-variant;
+    }
+
+    &-icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    &-count {
+      color: $color-text-secondary;
+      font-weight: $fw-label-md;
+    }
+
+    &-label {
+      color: $color-text-secondary;
+    }
+  }
+}
+
+// ── Comments ──────────────────────────────────────────────
+.article__comments {
+  h2 {
+    margin-bottom: $sp-stack-md;
+  }
+}
+
+.comment {
+  margin-bottom: $sp-stack-md;
+
+  &--reply {
+    margin-left: $sp-stack-lg;
+    padding-left: $sp-stack-md;
+    border-left: 2px solid $color-divider;
+    margin-bottom: $sp-stack-md;
+  }
+
+  &__body {
+    padding: $sp-stack-md;
+    background: $color-surface-container-low;
+    border-radius: $radius-default;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: $sp-stack-sm;
+    margin-bottom: 4px;
+  }
+
+  &__author {
+    color: $color-brand;
+  }
+
+  &__time {
+    color: $color-text-secondary;
+  }
+
+  &__content {
+    color: $color-text-primary;
+  }
+
+  &__replies {
+    margin-top: $sp-stack-sm;
+  }
+}

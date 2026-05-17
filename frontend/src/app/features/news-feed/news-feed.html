@@ -1,0 +1,35 @@
+<section class="feed">
+  <header class="feed__header">
+    <h1 class="feed__title display-lg">Portada</h1>
+    <p class="feed__subtitle body-lg">Las noticias que importan en Lima y Callao, seleccionadas para ti.</p>
+  </header>
+
+  <div class="feed__grid">
+    @for (article of articles(); track article.id) {
+      <article class="card" [routerLink]="['/article', article.id]">
+        @if (article.imageUrl) {
+          <div class="card__image">
+            <img [src]="article.imageUrl" [alt]="article.headline" loading="lazy" />
+          </div>
+        }
+        <div class="card__body">
+          <div class="card__meta">
+            <span class="label-sm card__category">{{ article.category }}</span>
+            <span class="label-sm card__source">{{ article.source }}</span>
+            <span class="label-sm card__time">{{ article.timeAgo }}</span>
+          </div>
+          <h3 class="card__headline headline-sm">{{ article.headline }}</h3>
+          <p class="card__excerpt body-md">{{ article.excerpt }}</p>
+        </div>
+        <div class="card__reactions">
+          @for (r of reactions; track r.key) {
+            <button class="card__reaction" [attr.aria-label]="r.label" (click)="$event.preventDefault(); $event.stopPropagation()">
+              <span class="card__reaction-icon">{{ r.icon }}</span>
+              <span class="label-sm card__reaction-count">{{ article.reactions[r.key] }}</span>
+            </button>
+          }
+        </div>
+      </article>
+    }
+  </div>
+</section>

@@ -1,0 +1,63 @@
+<article class="article">
+  <nav class="article__back">
+    <a routerLink="/" class="label-md">← Volver a la portada</a>
+  </nav>
+
+  <header class="article__header">
+    <div class="article__meta">
+      <span class="label-sm article__category">{{ article().category }}</span>
+      <span class="label-sm article__source">{{ article().source }}</span>
+      <span class="label-sm article__time">{{ article().timeAgo }}</span>
+    </div>
+    <h1 class="article__headline display-lg">{{ article().headline }}</h1>
+    <p class="article__author body-md">Por {{ article().author }}</p>
+  </header>
+
+  <div class="article__body body-lg">
+    @for (paragraph of article().body.split('\n\n'); track $index) {
+      <p>{{ paragraph }}</p>
+    }
+  </div>
+
+  <div class="article__reactions-bar">
+    @for (r of reactions; track r.key) {
+      <button class="article__reaction" [attr.aria-label]="r.label">
+        <span class="article__reaction-icon">{{ r.icon }}</span>
+        <span class="label-sm article__reaction-count">{{ article().reactions[r.key] }}</span>
+        <span class="label-sm article__reaction-label">{{ r.label }}</span>
+      </button>
+    }
+  </div>
+
+  <section class="article__comments">
+    <h2 class="headline-sm">Comentarios</h2>
+    <div class="comments__list">
+      @for (comment of comments(); track comment.id) {
+        <div class="comment">
+          <div class="comment__body">
+            <div class="comment__meta">
+              <span class="label-md comment__author">{{ comment.author }}</span>
+              <span class="label-sm comment__time">{{ comment.timeAgo }}</span>
+            </div>
+            <p class="body-md comment__content">{{ comment.content }}</p>
+          </div>
+          @if (comment.replies.length) {
+            <div class="comment__replies">
+              @for (reply of comment.replies; track reply.id) {
+                <div class="comment comment--reply">
+                  <div class="comment__body">
+                    <div class="comment__meta">
+                      <span class="label-md comment__author">{{ reply.author }}</span>
+                      <span class="label-sm comment__time">{{ reply.timeAgo }}</span>
+                    </div>
+                    <p class="body-md comment__content">{{ reply.content }}</p>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </section>
+</article>

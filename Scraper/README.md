@@ -4,23 +4,20 @@ Este script extrae noticias de La República relacionadas con Lima Metropolitana
 
 ## Requisitos
 
-- Python 3.6+
-- Bibliotecas: requests, beautifulsoup4
+- Python ≥3.14
+- [uv](https://docs.astral.sh/uv/) (gestor de paquetes)
+- Bibliotecas: bs4, requests
 
 ## Instalación
 
 ```bash
-# Opción 1: Usando pip
-pip install requests beautifulsoup4
-
-# Opción 2: Usando gestores de paquetes del sistema (Debian/Ubuntu)
-sudo apt-get install python3-requests python3-bs4
+uv sync
 ```
 
 ## Uso
 
 ```bash
-python3 lima_callao_news_scraper.py
+uv run python lima_callao_news_scraper.py
 ```
 
 ## Funcionalidades

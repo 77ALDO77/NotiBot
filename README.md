@@ -1,109 +1,55 @@
-# InteligenciaArtificial
+# NotiBot
 
-Un proyecto de inteligencias artificial con arquitectura full-stack:
-- **Backend**: Python (FastAPI)
-- **Componentes de IA**: Python
-- **Frontend**: Next.js
-- **Herramientas**: uv (Python), bun (JavaScript/TypeScript)
-- **Despliegue**: Docker y Kubernetes
+Plataforma de noticias inteligentes para Lima y Callao.
 
-## Tabla de Contenidos
-- [Características](#características)
-- [Requisitos Previos](#requisitos-previos)
-- [Configuración Local](#configuración-local)
-- [Despliegue con Docker](#despliegue-con-docker)
-- [Despliegue con Kubernetes](#despliegue-con-kubernetes)
-- [Tecnologías Utilizadas](#tecnologías-utilizadas)
-- [Contribuir](#contribuir)
-- [Licencia](#licencia)
+## Estructura
 
-## Características
-- Backend en Python con FastAPI para lógica de negocio y APIs REST
-- Componentes de IA especializados (machine learning, procesamiento de lenguaje natural, etc.)
-- Interfaz de usuario moderna y reactiva con Next.js
-- Gestión de dependencias eficiente con uv (Python) y bun (JS/TS)
-- Contenerización con Docker para portabilidad
-- Orquestación con Kubernetes para escalabilidad y alta disponibilidad
+| Módulo | Stack | Descripción |
+|--------|-------|-------------|
+| `Scraper/` | Python ≥3.14, bs4, requests, uv | Extrae noticias de La República y las guarda en JSON |
+| `backend/` | FastAPI, SQLAlchemy async, asyncpg, Alembic, uv | API REST con PostgreSQL |
+| `frontend/` | Angular 21 (standalone), npm, SCSS, vitest | Interfaz de usuario |
 
-## Requisitos Previos
-- [Python 3.11+](https://www.python.org/downloads/)
-- [Node.js 18+](https://nodejs.org/) (para desarrollo frontend)
-- [uv](https://github.com/astral-sh/uv) (instalador de paquetes Python ultra rápido)
-- [bun](https://bun.sh/) (runtime y bundler de JavaScript/TypeScript)
-- [Docker](https://www.python.org/downloads/)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/) y [minikube](https://minikube.sigs.k8s.io/docs/start/) o acceso a un clúster de Kubernetes
+## Requisitos
 
-## Configuración Local
-### Backend (Python/FastAPI)
+- Python ≥3.14 + [uv](https://docs.astral.sh/uv/)
+- Node.js + npm
+- Docker
+
+## Inicio rápido
+
 ```bash
-cd backend
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
-python main.py
-# o con uvicorn: uvicorn main:app --reload
-```
+# Instalar dependencias
+cd Scraper && uv sync
+cd ../backend && uv sync
+cd ../frontend && npm install
 
-### Frontend (Next.js)
-```bash
-cd frontend
-bun install
-bun run dev
-```
+# Ejecutar scraper
+cd Scraper && uv run python lima_callao_news_scraper.py
 
-## Despliegue con Docker
-### Construir imágenes
-```bash
-# Backend
-cd backend
-docker build -t inteligencia-artificial-backend .
+# Backend (requiere PostgreSQL disponible)
+cd backend && uv run alembic upgrade head && uv run uvicorn src.main:app --reload
 
 # Frontend
-cd ../frontend
-docker build -t inteligencia-artificial-frontend .
+cd frontend && npm start
 ```
 
-### Ejecutar con Docker Compose (si existe)
+## Docker
+
 ```bash
-docker-compose up
+docker compose up postgres        # solo base de datos
+docker compose up --build         # todos los servicios (prod)
+docker compose -f docker-compose.yml -f docker-compose.override.yml up --build  # dev (hot-reload)
 ```
 
-## Despliegue con Kubernetes
-1. Aplicar los manifiestos de Kubernetes:
-```bash
-kubectl apply -f k8s/
-```
+| Servicio | Puerto | Notas |
+|----------|--------|-------|
+| PostgreSQL | 5432 | 16-alpine, schema auto-aplicado |
+| Backend API | 8000 | FastAPI |
+| Frontend | 80 / 4200 (dev) | nginx en prod, Angular dev server en dev |
 
-2. Verificar los despliegues:
-```bash
-kubectl get pods
-kubectl get services
-```
+## Documentación
 
-3. Acceder a la aplicación:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8000
-
-## Tecnologías Utilizadas
-- **Backend**: Python 3.11+, FastAPI, SQLAlchemy, Pydantic
-- **IA**: TensorFlow/PyTorch, scikit-learn, transformers, langchain
-- **Frontend**: Next.js 13+, React 18, TypeScript
-- **Herramientas**: 
-  - uv: Instalador y gestor de paquetes Python
-  - bun: Runtime JavaScript/TypeScript y bundler
-- **Contenerización**: Docker
-- **Orquestación**: Kubernetes
-- **Otros**: 
-  - NGINX (como proxy inverso opcional)
-  - PostgreSQL (base de datos)
-  - Prometheus & Grafana (monitoreo)
-
-## Contribuir
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## Licencia
-Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
+- `AGENTS.md` — guía para agentes de OpenCode
+- `docs/NotiBot.md` — especificación de diseño
+- `docs/architecture.md` — arquitectura actual

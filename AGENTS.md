@@ -1,121 +1,73 @@
-# OpenCode Agents: Guia para NotiBot
+# NotiBot — AGENTS.md
 
-## Estructura actual
+Plataforma de noticias inteligentes para Lima y Callao. Tres módulos independientes + Docker.
 
-| Directorio | Estado | Stack |
-|-----------|--------|-------|
-| `Scraper/` | Implementado | Python 3.14+ (uv) |
-| `frontend/` | Implementado | Angular 21 (standalone, SCSS) |
-| `backend/` | Implementado (esqueleto) | FastAPI + SQLAlchemy async + Alembic |
-| `opencode.json` | MCP Stitch | Remote, en `.gitignore` |
+## Stacks & entrypoints
 
-## MCP Stitch
+| Módulo | Stack | Entrypoint real |
+|--------|-------|----------------|
+| `Scraper/` | Python ≥3.14, bs4, requests, **uv** | `uv run python lima_callao_news_scraper.py` (NO `main.py` — ese es stub) |
+| `frontend/` | Angular 21 standalone, npm, SCSS, **vitest** | `npm start` (ng serve) |
+| `backend/` | FastAPI, SQLAlchemy async, asyncpg, Alembic, **uv** | `uv run uvicorn src.main:app --reload` |
+| `opencode.json` | MCP Stitch (remote, API key, en `.gitignore`) | Project ID `268876530288821538` |
 
-El proyecto tiene el MCP de Stitch configurado en `opencode.json` (contiene API key, ignorado en git).
-Stitch es usado para generar y obtener pantallas de UI para el frontend.
+## Cross-cutting
 
-**Stitch project ID**: `268876530288821538` (Lima Social News AI)
-**Design system activo**: Urban Pulse System (Light, Newsreader + Manrope, Deep Indigo #1E1B4B)
+- `uv sync` para instalar dependencias Python (tanto Scraper/ como backend/)
+- Sin comentarios en código a menos que sea indispensable
+- `opencode.json` y `.env` están en `.gitignore`
+- **Documentos stale** (NO reflejan el código actual): `README.md` (menciona Next.js/bun), `docs/architecture.md` (describe `ai/`, `k8s/`, etc. que no existen). Ignorarlos. `docs/NotiBot.md` es un design spec, no implementación actual.
 
-Tools disponibles via Stitch MCP: `stitch_get_project`, `stitch_get_screen`, `stitch_list_screens`, `stitch_list_design_systems`, `stitch_generate_screen_from_text`, `stitch_edit_screens`, etc.
+## Scraper
 
-## Scraper (Python)
+- Entrypoint: `Scraper/lima_callao_news_scraper.py` (argparse, CLI args)
+- `Scraper/larepublica_scraper.py` es scraper anterior más simple
+- Output JSON: `lima_callao_news_YYYYMMDD_HHMMSS.json`
 
-- **Entrypoint real**: `cd Scraper && uv run python lima_callao_news_scraper.py` (no `main.py`)
-- **Dependencias**: `cd Scraper && uv sync`
-- **Python**: `>=3.14`, dependencias: `bs4`, `requests`
-- Los `.json` en `Scraper/` son output de ejecuciones anteriores
+## Frontend
 
-## Frontend (Angular 21)
+- **Standalone components**, sin NgModules
+- **Lazy loading**: `loadComponent` en `app.routes.ts` (4 rutas: `/`, `/article/:id`, `/chat`, `/login`)
+- **Router**: `withComponentInputBinding()` — el param `:id` llega como `@Input()` al componente ArticleDetail
+- **Tests**: `npm test` → vitest (builder `@angular/build:unit-test`, tipos `vitest/globals` en tsconfig.spec.json)
+- **SCSS**: `@use`, nunca `@import`. Design tokens en `src/styles/_tokens.scss` (import: `@use '../../../styles/tokens' as *;`)
+- **Prettier**: config en `.prettierrc` (printWidth 100, singleQuote, parser angular para HTML)
+- Typografías: Newsreader (headlines) + Manrope (body/UI) via Google Fonts en `index.html`
 
-### Comandos esenciales
-- **Dev server**: `cd frontend && npm start`
-- **Build**: `cd frontend && npm run build`
-- **Tests**: `cd frontend && npm test`
+### Design tokens clave (Urban Pulse System)
 
-### Arquitectura
-- **Standalone components** (sin NgModules)
-- **Lazy loading** via `loadComponent` en `app.routes.ts`
-- **SCSS** con design tokens en `src/styles/_tokens.scss` (`@use`)
-- **Tipografias**: Newsreader (headlines) + Manrope (body/UI), cargadas via Google Fonts en `index.html`
+| Token | Valor | Uso |
+|-------|-------|-----|
+| `$color-brand` / `$color-primary-container` | `#1E1B4B` | Deep Indigo |
+| `$color-cta` / `$color-accent-lime` | `#84CC16` | Acción principal |
+| `$color-ai` / `$color-accent-electric-blue` | `#0EA5E9` | Solo features IA |
+| `$font-headline` | `'Newsreader', serif` | Headlines |
+| `$font-body` | `'Manrope', sans-serif` | Body/UI |
 
-### Rutas
-| Path | Componente | Archivo |
-|------|-----------|---------|
-| `/` | NewsFeed (portada) | `features/news-feed/` |
-| `/article/:id` | ArticleDetail | `features/article-detail/` |
-| `/chat` | AiChat (asistente IA) | `features/ai-chat/` |
-| `/login` | Login | `features/auth/` |
+## Backend
 
-### Design tokens (Urban Pulse System)
-- **Brand/primary**: `$color-brand` = `#1E1B4B` (Deep Indigo)
-- **Accent/CTA**: `$color-cta` = `#84CC16` (Lime Green)
-- **AI features**: `$color-ai` = `#0EA5E9` (Electric Blue)
-- **Fonts**: `$font-headline: 'Newsreader'`, `$font-body: 'Manrope'`
-- Las variables SCSS se importan con `@use '../../../styles/tokens' as *;` en cada componente
+- **Esqueleto temprano** — solo 2 endpoints: `GET /api/health` y `GET /api/news` (retorna `[]`)
+- FastAPI con lifespan (dispose del engine async al cerrar)
+- CORS configurado desde pydantic-settings (`CORS_ORIGINS` del `.env`)
+- DB: SQLAlchemy async + asyncpg, engine en `src/core/database.py`
+- Migraciones: `cd backend && uv run alembic upgrade head`
+- **Quirk Alembic**: `alembic.ini` tiene URL hardcodeada, pero `alembic/env.py` lee `settings.DATABASE_URL` de pydantic en runtime. Correr migraciones requiere `.env` configurado.
 
-### Sass: usar `@use`, NO `@import`
-`@import` esta deprecado y causa warnings en build. Siempre usar `@use '...' as *`.
+## Docker
 
-### Angular CLI
-- Instalado globalmente (`ng`), version `21.2.9`
-- Node.js `v25.9.0` (Angular muestra warning pero compila sin errores)
+```bash
+docker compose up postgres          # solo DB, puerto 5432
+docker compose up --build           # todo (prod-like)
+docker compose -f docker-compose.yml -f docker-compose.override.yml up --build  # dev hot-reload
+docker compose down -v              # ¡cuidado! borra volúmenes (pgdata)
+```
 
-## Backend (FastAPI)
+| Servicio | Puerto prod | Puerto dev | Notas |
+|----------|-------------|------------|-------|
+| `postgres` | 5432 | 5432 | Image 16-alpine, schema.sql auto-aplicado |
+| `backend` | 8000 | 8000 | uvicorn --reload en override |
+| `frontend` | 80 | **4200** | nginx en prod, `npx ng serve` en dev (override) |
 
-### Comandos esenciales
-- **Dev server**: `cd backend && uv run uvicorn src.main:app --reload`
-- **Instalar deps**: `cd backend && uv sync`
-- **Migraciones**: `cd backend && uv run alembic upgrade head`
-- **Nueva migracion**: `cd backend && uv run alembic revision --autogenerate -m "descripcion"`
-
-### Arquitectura
-- **FastAPI** con lifespan para manejar conexion a DB
-- **SQLAlchemy async** + asyncpg para PostgreSQL
-- **Alembic** para migraciones
-- **Pydantic Settings** para config via `.env`
-- `src/core/config.py` — Settings cargados de `.env`
-- `src/core/database.py` — Engine async + session factory
-- `src/models/base.py` — SQLAlchemy DeclarativeBase
-- `src/api/router.py` — Endpoints API
-
-### Python
-- `>=3.14`, package manager: `uv`
-- Dependencias: fastapi, uvicorn, sqlalchemy[asyncio], asyncpg, pydantic, pydantic-settings, alembic
-
-## Docker / Infraestructura
-
-### Comandos esenciales
-- **Levantar todo**: `docker compose up --build`
-- **Solo DB**: `docker compose up postgres`
-- **Desarrollo (hot-reload)**: `docker compose -f docker-compose.yml -f docker-compose.override.yml up --build`
-- **Bajar**: `docker compose down -v`
-
-### Servicios
-| Servicio | Puerto | Descripcion |
-|----------|--------|-------------|
-| `postgres` | 5432 | PostgreSQL 16 + schema.sql auto-aplicado |
-| `backend` | 8000 | FastAPI API |
-| `frontend` | 80 | Angular servido via nginx (SPA + proxy /api/*) |
-
-### Archivos clave
-- `docker-compose.yml` — orquestacion principal (produccion)
-- `docker-compose.override.yml` — desarrollo (volumes, hot-reload)
-- `.env` — variables de entorno (en `.gitignore`)
-- `.env.example` — template sin secretos
-- `backend/Dockerfile` — multi-stage (uv build + python slim runtime)
-- `frontend/Dockerfile` — multi-stage (node build + nginx runtime)
-- `frontend/nginx.conf` — SPA fallback + proxy /api/* al backend
-- `docs/database/schema.sql` — schema completo PostgreSQL (se monta en init del contenedor)
-
-## Que NO existe aun
-- Tests para Scraper y Backend
-- CI/CD
-- K8s manifests
-- Servicios de IA (NER, sentiment, etc.)
-
-## Convenciones
-- Sin comentarios en codigo a menos que sea necesario
-- `opencode.json` y `.env` estan en `.gitignore`
-- Usar `@use` en SCSS, nunca `@import`
-- Los entrypoints reales no siempre son `main.py`: verificar cada modulo
+- Prod: frontend servido por nginx (SPA fallback + proxy `/api/*` → backend:8000)
+- Dev: Angular dev server en `:4200` via docker-compose override
+- Backend override monta `./backend/src:/app/src:ro` para hot-reload

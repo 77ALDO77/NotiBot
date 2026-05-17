@@ -41,12 +41,12 @@ Motor de inteligencia para retener al usuario y ofrecer contenido relevante.
 
 | Componente | Tecnología Sugerida |
 | :--- | :--- |
-| **Backend** | Python Django |
-| **Frontend** | React / Next.js |
-| **Base de Datos** | PostgreSQL (Relacional) + Pinecone/ChromaDB (Vectorial para RAG) |
-| **IA / LLM** | OpenAI (GPT-4o) / Anthropic (Claude 3.5) / LangChain para Agentic Workflow |
-| **Scraping** | Scrapy / Playwright (para manejar JS dinámico) |
-| **Machine Learning** | Scikit-learn / PyTorch para el motor de recomendaciones |
+| **Backend** | FastAPI (Python ≥3.14) + SQLAlchemy async + asyncpg |
+| **Frontend** | Angular 21 (standalone components) |
+| **Base de Datos** | PostgreSQL 16 (Relacional) + (planeado: Pinecone/ChromaDB para RAG) |
+| **IA / LLM** | (planeado: OpenAI / Anthropic / LangChain para Agentic Workflow) |
+| **Scraping** | bs4 + requests (sitemaps XML de La República) |
+| **Machine Learning** | (planeado: Scikit-learn / PyTorch para recomendaciones) |
 
 ---
 

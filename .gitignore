@@ -18,8 +18,11 @@ pgdata/
 # Angular
 frontend/dist/
 
-# IDE
+# Scraper output
+backend/data/
 .vscode/
 .idea/
 *.swp
 *.swo
+#agentes 
+.agente/

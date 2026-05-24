@@ -145,4 +145,14 @@
       color: $color-on-primary-fixed-variant;
     }
   }
+
+  &__error {
+    text-align: center;
+    color: #dc2626;
+    font-size: 14px;
+    margin-top: $sp-stack-md;
+    padding: 8px 12px;
+    background: #fef2f2;
+    border-radius: $radius-default;
+  }
 }

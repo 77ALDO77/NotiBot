@@ -3,6 +3,7 @@
 -- Description: Esquema completo para la plataforma de noticias
 -- ============================================================
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- ============================================================
@@ -16,7 +17,7 @@ CREATE TABLE "public"."fuentes" (
     "slug" text NOT NULL UNIQUE,
     "url_base" text NOT NULL,
     "activa" boolean NOT NULL DEFAULT TRUE,
-    "confiabilidad" double NOT NULL DEFAULT 1.0,
+    "confiabilidad" double precision NOT NULL DEFAULT 1.0,
     "notas" text,
     "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -137,11 +138,11 @@ CREATE TABLE "public"."noticias_analisis" (
     "id_noticia" bigint NOT NULL,
     "resumen_ia" text,
     "resumen_corto_ia" text,
-    "puntaje_sentimiento" double,
+    "puntaje_sentimiento" double precision,
     "etiqueta_sentimiento" text,
-    "relevancia_local" double,
-    "score_confiabilidad" double,
-    "score_calidad" double,
+    "relevancia_local" double precision,
+    "score_confiabilidad" double precision,
+    "score_calidad" double precision,
     "clasificacion_tematica" text,
     "clasificacion_modelo" text,
     "clasificacion_version" text,
@@ -181,7 +182,7 @@ CREATE INDEX "noticias_chunks_idx_chunks_noticia" ON "public"."noticias_chunks" 
 -- Busqueda full-text
 CREATE TABLE "public"."noticias_busqueda" (
     "id_noticia" bigint NOT NULL,
-    "documento_tsv" text NOT NULL,
+    "documento_tsv" tsvector NOT NULL,
     PRIMARY KEY ("id_noticia")
 );
 CREATE INDEX "noticias_busqueda_idx_noticias_busqueda_tsv" ON "public"."noticias_busqueda" USING GIN ("documento_tsv");
@@ -194,7 +195,7 @@ CREATE INDEX "noticias_busqueda_idx_noticias_busqueda_tsv" ON "public"."noticias
 CREATE TABLE "public"."noticias_entidades" (
     "id_noticia" bigint NOT NULL,
     "id_entidad" bigint NOT NULL,
-    "relevancia" double,
+    "relevancia" double precision,
     "menciones" int,
     "origen_extraccion" text,
     PRIMARY KEY ("id_noticia", "id_entidad"),
@@ -206,7 +207,7 @@ CREATE INDEX "noticias_entidades_idx_noticias_entidades_entidad" ON "public"."no
 CREATE TABLE "public"."noticias_categorias" (
     "id_noticia" bigint NOT NULL,
     "id_categoria" int NOT NULL,
-    "peso" double,
+    "peso" double precision,
     "origen" text,
     PRIMARY KEY ("id_noticia", "id_categoria"),
     CHECK (origen IN ('fuente','regla','ia'))
@@ -337,7 +338,7 @@ CREATE TABLE "public"."referencias_rag" (
     "id_mensaje" bigint NOT NULL,
     "id_noticia" bigint,
     "id_chunk" bigint,
-    "score_relevancia" double,
+    "score_relevancia" double precision,
     PRIMARY KEY ("id_mensaje", "id_noticia", "id_chunk")
 );
 
@@ -351,7 +352,7 @@ CREATE TABLE "public"."interacciones" (
     "id_usuario" bigint NOT NULL,
     "id_noticia" bigint NOT NULL,
     "tipo_interaccion" text NOT NULL,
-    "valor" double,
+    "valor" double precision,
     "metadata" jsonb,
     "fecha" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY ("id"),

@@ -22,7 +22,7 @@ Plataforma de noticias inteligentes para Lima y Callao. Backend + frontend + Pos
 
 | Módulo | Stack |
 |--------|-------|
-| `backend/` | FastAPI, SQLAlchemy async, asyncpg, Alembic, **uv**, Python ≥3.14 |
+| `backend/` | FastAPI, SQLAlchemy async, asyncpg, Alembic, **uv**, Python 3.13 (pyproject dice ≥3.14 pero no existe; uv resuelve con lo disponible) |
 | `frontend/` | Angular 21 standalone, SCSS, vitest, npm |
 | `Scraper/` (raíz) | **Deprecado**. Ignorar. El scraper real está en `backend/src/scraper/`. |
 
@@ -78,7 +78,7 @@ backend/src/
 
 - Jobs: `chunking` (divide artículo en ~350 palabras, guarda en `noticias_chunks`) → `vectorizacion` (tsvector en `noticias_busqueda`)
 - Trigger: `POST /api/admin/pipeline/process` (procesa jobs pendientes)
-- **BUG CRÍTICO**: en `process_chunking_job` (`pipeline/processor.py:61`), NO usar variable `text` para almacenar el texto del artículo — sombrea `sqlalchemy.text` y rompe todas las queries posteriores. Usar `full_text` o cualquier otro nombre.
+- **BUG FIXEADO — ADVERTENCIA**: en `process_chunking_job` (`pipeline/processor.py:61`), NUNCA nombrar una variable local `text` porque sombrea `sqlalchemy.text` y rompe todas las queries posteriores. El código actual usa `full_text` correctamente.
 - Búsqueda pública: `GET /api/rag/search?q=`, `GET /api/rag/context?q=&max_tokens=`
 
 ### Vectores 3D (PyTorch)
@@ -91,7 +91,7 @@ backend/src/
 ## Frontend
 
 - **Standalone components**, sin NgModules. Lazy loading con `loadComponent` en `app.routes.ts`.
-- **Router**: `withComponentInputBinding()` — `:id` de ruta llega como `@Input()` al componente `ArticleDetail`.
+- **Router**: `withComponentInputBinding()` — `:id` de ruta llega como `@Input()` al componente `ArticleDetail` (el alias `Input as RouteInput` es intencional interno).
 - 6 rutas: `/`, `/article/:id`, `/chat`, `/login`, `/admin` (protegida por `AdminGuard`), `**` → redirect `/`.
 - **SCSS**: `@use`, nunca `@import`. Design tokens en `src/styles/_tokens.scss`.
 - Proxy de desarrollo: `proxy.conf.json` → `/api` → `http://localhost:8000`. Dev siempre espera backend en `:8000`.
@@ -124,7 +124,7 @@ docker compose down -v              # borra volúmenes (pgdata)
 
 ## Agent Skills
 
-Skills instaladas via `npx skills add`. El AI assistant las carga automáticamente al detectar tareas del stack correspondiente.
+Skills instaladas via `npx skills add`. El AI assistant las carga automáticamente al detectar tareas del stack correspondiente. `skills-lock.json` en la raíz fija las versiones.
 
 | Skill | Stack | Fuente |
 |-------|-------|--------|

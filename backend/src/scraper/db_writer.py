@@ -1,16 +1,17 @@
 import hashlib
 import json
-from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from src.core.database import engine
+from src.core.utils import utcnow
 
 
 class NewsDBWriter:
-    def __init__(self, database_url: str, source_slug: str = "larepublica"):
-        self.engine = create_async_engine(database_url, echo=False)
-        self.session_factory = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
+    def __init__(self, source_slug: str = "larepublica"):
+        self.session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         self._source_id: Optional[int] = None
         self._source_slug = source_slug
 
@@ -20,7 +21,6 @@ class NewsDBWriter:
     async def close(self):
         if hasattr(self, "session"):
             await self.session.close()
-        await self.engine.dispose()
 
     async def ensure_fuente(self) -> int:
         slug = self._source_slug
@@ -32,7 +32,7 @@ class NewsDBWriter:
             self._source_id = row[0]
             return self._source_id
 
-        now = datetime.now(timezone.utc)
+        now = utcnow()
         source_names = {"larepublica": ("La Republica", "https://larepublica.pe"),
                         "elcomercio": ("El Comercio", "https://elcomercio.pe")}
         nombre, url_base = source_names.get(slug, (slug, f"https://{slug}.pe"))
@@ -76,12 +76,12 @@ class NewsDBWriter:
                 "scope_geografico": "desconocido",
                 "activa": True,
                 "prioridad": 100,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": utcnow(),
             },
         )
 
     async def insert_noticia(self, record: dict, contenido_data: dict) -> Optional[int]:
-        now = datetime.now(timezone.utc)
+        now = utcnow()
         record["id_fuente"] = self._source_id
         record["slug_fuente"] = self._source_slug
         record["created_at"] = now
@@ -156,7 +156,7 @@ class NewsDBWriter:
         return noticia_id
 
     async def _insert_contenido(self, noticia_id: int, data: dict):
-        now = datetime.now(timezone.utc)
+        now = utcnow()
         content = data.get("contenido_limpio", "")
 
         await self.session.execute(
@@ -212,7 +212,7 @@ class NewsDBWriter:
                 "nivel": nivel,
                 "mensaje": mensaje,
                 "metadata": json.dumps(meta) if meta else None,
-                "created_at": datetime.now(timezone.utc),
+                "created_at": utcnow(),
             },
         )
 
@@ -233,14 +233,8 @@ class NewsDBWriter:
         )
 
     async def create_chunking_job(self, noticia_id: int):
-        now = datetime.now(timezone.utc)
-        await self.session.execute(
-            text("""
-                INSERT INTO public.pipeline_jobs (job_type, target_type, target_id, estado, prioridad, created_at)
-                VALUES ('chunking', 'noticia', :target_id, 'pendiente', 100, :created_at)
-            """),
-            {"target_id": noticia_id, "created_at": now},
-        )
+        from src.pipeline.processor import create_chunking_jobs
+        await create_chunking_jobs(noticia_id, self.session)
 
     async def commit(self):
         await self.session.commit()

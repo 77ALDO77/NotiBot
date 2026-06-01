@@ -565,7 +565,7 @@ async def generate_embeddings(db: AsyncSession = Depends(get_db)):
         is_new = i >= len(old_rows)
         if is_new:
             await db.execute(
-                text("UPDATE noticias_chunks SET embedding = CAST(:emb AS vector), x = :x, y = :y, z = :z WHERE id = :id"),
+                text("UPDATE noticias_chunks SET embedding = :emb, x = :x, y = :y, z = :z WHERE id = :id"),
                 {"id": chunk_id, "emb": f"[{emb_str}]", "x": float(all_coords[i][0]), "y": float(all_coords[i][1]), "z": float(all_coords[i][2])},
             )
         else:
@@ -783,7 +783,7 @@ async def _run_scraper_async(cmd: list, current_day: str | None = None):
                 await db.execute(
                     text("""
                         INSERT INTO public.scraping_logs (id_fuente, nivel, mensaje, metadata, created_at)
-                        VALUES (NULL, :nivel, :mensaje, :meta::jsonb, :created_at)
+                        VALUES (NULL, :nivel, :mensaje, CAST(:meta AS jsonb), :created_at)
                     """),
                     {
                         "nivel": nivel,
@@ -802,20 +802,20 @@ async def _run_scraper_async(cmd: list, current_day: str | None = None):
     try:
         if proc.stdout:
             async for line in proc.stdout:
-                text = line.decode("utf-8", errors="replace").strip()
-                if not text:
+                raw_line = line.decode("utf-8", errors="replace").strip()
+                if not raw_line:
                     continue
 
-                nivel = "error" if "✗" in text or "ERROR" in text.lower() else \
-                        "warning" if "WARN" in text.lower() or "⚠" in text else "info"
+                nivel = "error" if "✗" in raw_line or "ERROR" in raw_line.lower() else \
+                        "warning" if "WARN" in raw_line.lower() or "⚠" in raw_line else "info"
 
-                await _insert_live_log(nivel, text, current_day)
+                await _insert_live_log(nivel, raw_line, current_day)
 
                 state["lines"] = state.get("lines", 0) + 1
                 _running_scrapers["default"] = state
 
-                if "DIA:" in text and current_day is None:
-                    current_day = text.split("DIA:")[-1].strip()
+                if "DIA:" in raw_line and current_day is None:
+                    current_day = raw_line.split("DIA:")[-1].strip()
                     state["current_day"] = current_day
 
         await proc.wait()

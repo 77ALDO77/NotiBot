@@ -177,7 +177,7 @@ CREATE TABLE "public"."noticias_chunks" (
     "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY ("id")
 );
-CREATE INDEX "noticias_chunks_idx_chunks_noticia" ON "public"."noticias_chunks" ("id_noticia", "chunk_index");
+CREATE UNIQUE INDEX "noticias_chunks_idx_chunks_noticia" ON "public"."noticias_chunks" ("id_noticia", "chunk_index");
 
 -- Busqueda full-text
 CREATE TABLE "public"."noticias_busqueda" (
@@ -280,7 +280,7 @@ CREATE TABLE "public"."pipeline_jobs" (
     "started_at" timestamptz,
     "finished_at" timestamptz,
     PRIMARY KEY ("id"),
-    CHECK (job_type IN ('descubrimiento','scraping','normalizacion','clasificacion','resumen','vectorizacion')),
+    CHECK (job_type IN ('descubrimiento','scraping','normalizacion','clasificacion','resumen','vectorizacion','chunking')),
     CHECK (target_type IN ('fuente','ingesta_url','noticia','chunk')),
     CHECK (estado IN ('pendiente','ejecutando','completado','error','cancelado'))
 );

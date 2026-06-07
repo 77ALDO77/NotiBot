@@ -12,7 +12,6 @@ import re
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
-from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -22,149 +21,12 @@ from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from src.scraper.models import NoticiaRecord, noticia_to_dict
+from src.scraper.classifier import (
+    DISTRICT_UBIGEO, normalize_text, prepare_keywords, build_district_patterns
+)
+from src.scraper.category_inference import infer_categoria
 
-# ---------------------------------------------------------------------------
-# Data model — mirrors the `noticias` table
-# ---------------------------------------------------------------------------
-
-@dataclass
-class NoticiaRecord:
-    """Maps 1-to-1 with the `noticias` database table."""
-
-    # Required / non-optional columns
-    url_original: str
-    titulo: str
-    scope_geografico: str = "desconocido"   # lima_metropolitana | callao | desconocido
-    idioma: str = "es"
-    es_duplicado: bool = False
-
-    # Source metadata
-    id_fuente: Optional[int] = None
-    slug_fuente: Optional[str] = None
-
-    # URLs
-    url_canonica: Optional[str] = None
-    url_imagen: Optional[str] = None
-
-    # Article content metadata
-    subtitulo: Optional[str] = None
-    autor: Optional[str] = None
-    seccion_fuente: Optional[str] = None
-    categoria_principal: Optional[str] = None
-
-    # Geographic
-    provincia: Optional[str] = None
-    distrito: Optional[str] = None
-    ubigeo: Optional[str] = None
-
-    # Dates
-    fecha_publicacion: Optional[datetime] = None
-    fecha_actualizacion: Optional[datetime] = None
-
-    # Dedup hashes
-    hash_titulo: Optional[str] = None
-    hash_contenido: Optional[str] = None
-
-    # Canonical duplicate tracking
-    id_noticia_canonica: Optional[int] = None
-
-    # Audit timestamps
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
-    def __post_init__(self):
-        """Auto-compute hashes after object creation."""
-        if self.titulo and self.hash_titulo is None:
-            self.hash_titulo = hashlib.sha256(self.titulo.encode()).hexdigest()[:32]
-
-
-def noticia_to_dict(record: NoticiaRecord, contenido: str = "") -> dict:
-    """Serialize a NoticiaRecord to a JSON-safe dict.
-
-    Also computes hash_contenido here so that the raw content string
-    does not need to be stored on the dataclass itself.
-    """
-    d = asdict(record)
-
-    # Compute content hash if not already set
-    if not d.get("hash_contenido") and contenido:
-        d["hash_contenido"] = hashlib.sha256(contenido.encode()).hexdigest()[:32]
-
-    # Serialize datetime fields to ISO-8601 strings
-    for key in ("fecha_publicacion", "fecha_actualizacion", "created_at", "updated_at"):
-        val = d.get(key)
-        if isinstance(val, datetime):
-            d[key] = val.isoformat()
-        elif val is None:
-            d[key] = None
-
-    return d
-
-
-# ---------------------------------------------------------------------------
-# District → ubigeo mapping (Lima Metropolitana + Callao)
-# ---------------------------------------------------------------------------
-
-DISTRICT_UBIGEO: dict[str, tuple[str, str]] = {
-    # --- Lima Metropolitana ---
-    "ancon": ("Lima", "150102"),
-    "ate": ("Lima", "150103"),
-    "barranco": ("Lima", "150104"),
-    "breña": ("Lima", "150105"),
-    "carabayllo": ("Lima", "150106"),
-    "chaclacayo": ("Lima", "150107"),
-    "chorrillos": ("Lima", "150108"),
-    "cieneguilla": ("Lima", "150109"),
-    "comas": ("Lima", "150110"),
-    "el agustino": ("Lima", "150111"),
-    "independencia": ("Lima", "150112"),
-    "jesus maria": ("Lima", "150113"),
-    "la molina": ("Lima", "150114"),
-    "la victoria": ("Lima", "150115"),
-    "lince": ("Lima", "150116"),
-    "los olivos": ("Lima", "150117"),
-    "lurigancho": ("Lima", "150118"),
-    "lurin": ("Lima", "150119"),
-    "magdalena del mar": ("Lima", "150120"),
-    "miraflores": ("Lima", "150122"),
-    "pachacamac": ("Lima", "150123"),
-    "pucusana": ("Lima", "150124"),
-    "pueblo libre": ("Lima", "150121"),
-    "puente piedra": ("Lima", "150125"),
-    "punta hermosa": ("Lima", "150126"),
-    "punta negra": ("Lima", "150127"),
-    "rimac": ("Lima", "150128"),
-    "san bartolo": ("Lima", "150129"),
-    "san borja": ("Lima", "150130"),
-    "san isidro": ("Lima", "150131"),
-    "san juan de lurigancho": ("Lima", "150132"),
-    "san juan de miraflores": ("Lima", "150133"),
-    "san luis": ("Lima", "150134"),
-    "san martin de porres": ("Lima", "150135"),
-    "san miguel": ("Lima", "150136"),
-    "santa anita": ("Lima", "150137"),
-    "santa maria del mar": ("Lima", "150138"),
-    "santa rosa": ("Lima", "150139"),
-    "santiago de surco": ("Lima", "150140"),
-    "surco": ("Lima", "150140"),
-    "surquillo": ("Lima", "150141"),
-    "villa el salvador": ("Lima", "150142"),
-    "villa maria del triunfo": ("Lima", "150143"),
-    "cercado de lima": ("Lima", "150101"),
-    # --- Callao ---
-    "callao": ("Callao", "070101"),
-    "bellavista": ("Callao", "070102"),
-    "carmen de la legua reynoso": ("Callao", "070103"),
-    "la perla": ("Callao", "070104"),
-    "la punta": ("Callao", "070105"),
-    "ventanilla": ("Callao", "070106"),
-    "mi peru": ("Callao", "070107"),
-}
-
-
-# ---------------------------------------------------------------------------
-# Main scraper class
-# ---------------------------------------------------------------------------
 
 class LimaCallaoNewsScraper:
     SOURCE_ID = 1
@@ -192,8 +54,7 @@ class LimaCallaoNewsScraper:
         self.max_workers = max_workers
         self.session = self._setup_session()
 
-        # Keyword patterns for geographic scope detection
-        self.lima_keywords = self._prepare_keywords([
+        self.lima_keywords = prepare_keywords([
             "lima", "lima metropolitana", "metropolitana de lima",
             "cono norte", "cono sur", "cono este", "cono oeste",
             "san miguel", "san isidro", "miraflores", "barranco",
@@ -210,17 +71,13 @@ class LimaCallaoNewsScraper:
             "chorrillos", "santa anita", "san luis",
         ])
 
-        self.callao_keywords = self._prepare_keywords([
+        self.callao_keywords = prepare_keywords([
             "callao", "provincia constitucional del callao",
             "bellavista", "carmen de la legua reynoso", "la perla",
             "ventanilla", "mi peru", "la punta",
         ])
 
-        # Normalised district names for ubigeo lookup
-        self._district_patterns = {
-            self._normalize_text(k): (v[0], k, v[1])   # (provincia, distrito, ubigeo)
-            for k, v in DISTRICT_UBIGEO.items()
-        }
+        self._district_patterns = build_district_patterns()
 
     # ------------------------------------------------------------------
     # Session setup
@@ -249,28 +106,6 @@ class LimaCallaoNewsScraper:
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         return session
-
-    # ------------------------------------------------------------------
-    # Text utilities
-    # ------------------------------------------------------------------
-
-    def _normalize_text(self, text: str) -> str:
-        """Lowercase + strip diacritics."""
-        if not text:
-            return ""
-        text = str(text).lower()
-        return "".join(
-            c for c in unicodedata.normalize("NFD", text)
-            if unicodedata.category(c) != "Mn"
-        )
-
-    def _prepare_keywords(self, keywords: list[str]) -> list[re.Pattern]:
-        """Compile whole-word regex patterns for each keyword."""
-        patterns = []
-        for kw in set(keywords):
-            norm = self._normalize_text(kw)
-            patterns.append(re.compile(r"\b" + re.escape(norm) + r"\b"))
-        return patterns
 
     # ------------------------------------------------------------------
     # Sitemap discovery
@@ -539,11 +374,7 @@ class LimaCallaoNewsScraper:
     # ------------------------------------------------------------------
 
     def classify_geo(self, titulo: str, content: str) -> tuple[str, Optional[str], Optional[str], Optional[str]]:
-        """Classify the article's geographic scope.
-
-        Returns (scope_geografico, provincia, distrito, ubigeo).
-        """
-        text = self._normalize_text(titulo + " " + content)
+        text = normalize_text(titulo + " " + content)
 
         # Detect most specific district first
         for norm_district, (provincia, raw_district, ubigeo) in self._district_patterns.items():
@@ -593,7 +424,7 @@ class LimaCallaoNewsScraper:
             subtitulo=data["subtitulo"],
             autor=data["autor"],
             seccion_fuente=data["seccion_fuente"],
-            categoria_principal=data["categoria_principal"] or _infer_categoria(data["seccion_fuente"]),
+            categoria_principal=data["categoria_principal"] or infer_categoria(data["seccion_fuente"]),
             scope_geografico=scope,
             provincia=provincia,
             distrito=distrito,
@@ -971,12 +802,10 @@ def _record_to_db_dict(record: NoticiaRecord, contenido: str = "") -> dict:
 
 def _write_to_database(results: list[tuple[NoticiaRecord, dict]], sitemaps: list[str]) -> tuple[int, int]:
     import asyncio
-    import os
 
     from src.scraper.db_writer import NewsDBWriter
 
-    database_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://notibot:notibot_dev_2026@192.168.3.13:5432/notibot")
-    db_writer = NewsDBWriter(database_url)
+    db_writer = NewsDBWriter()
     written = 0
     errors = 0
 
@@ -1012,34 +841,13 @@ def _write_to_database(results: list[tuple[NoticiaRecord, dict]], sitemaps: list
     return written, errors
 
 
-SECTION_CATEGORY_MAP = {
-    "sociedad": "Sociedad", "politica": "Política", "deportes": "Deportes",
-    "economia": "Economía", "espectaculos": "Espectáculos", "entretenimiento": "Espectáculos",
-    "opinion": "Opinión", "mundo": "Mundo", "ciencia": "Ciencia",
-    "datos-lr": "Datos", "verificador": "Datos",
-    "lima": "Lima",
-}
-
-
-def _infer_categoria(seccion: str | None) -> str | None:
-    if not seccion:
-        return None
-    sec = seccion.lower().strip()
-    for key, val in SECTION_CATEGORY_MAP.items():
-        if key in sec:
-            return val
-    return seccion.title()
-
-
 def _write_to_database_daily(results: list[tuple[NoticiaRecord, dict]], scraper, date_str: str,
                               urls_totales: int, source_slug: str = "larepublica") -> tuple[int, int]:
     import asyncio
-    import os
 
     from src.scraper.db_writer import NewsDBWriter
 
-    database_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://notibot:notibot_dev_2026@192.168.3.13:5432/notibot")
-    db_writer = NewsDBWriter(database_url, source_slug=source_slug)
+    db_writer = NewsDBWriter(source_slug=source_slug)
     written = 0
     errors = 0
     duplicadas = 0

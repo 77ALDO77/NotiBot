@@ -24,11 +24,9 @@ P21_CATEGORY_MAP = {
 }
 
 
-def _normalize_p21_category(cat: str | None) -> str | None:
-    if not cat:
-        return None
-    key = cat.lower().strip()
-    return P21_CATEGORY_MAP.get(key, cat.title())
+def _normalize_p21_category(cat: str | None, titulo: str = "") -> str | None:
+    from src.scraper.category_inference import infer_categoria
+    return infer_categoria(cat)
 
 
 class Peru21Scraper:
@@ -96,7 +94,7 @@ class Peru21Scraper:
                 "autor": autor,
                 "fecha_publicacion": fecha,
                 "seccion_fuente": seccion.lower() if seccion else None,
-                "categoria_principal": _normalize_p21_category(seccion),
+                "categoria_principal": _normalize_p21_category(seccion, titulo),
                 "url_imagen": url_imagen,
             })
 
@@ -213,7 +211,7 @@ class Peru21Scraper:
             "subtitulo": subtitulo,
             "autor": autor,
             "seccion_fuente": seccion_fuente,
-            "categoria_principal": _normalize_p21_category(categoria_principal),
+            "categoria_principal": _normalize_p21_category(categoria_principal, titulo),
             "fecha_publicacion": fecha_publicacion,
             "fecha_actualizacion": fecha_actualizacion,
             "content": content,

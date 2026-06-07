@@ -63,12 +63,43 @@ backend/src/
 ### Scraper (integrado)
 
 - Entrypoint: `python -m src.scraper.main` desde `backend/`
-- Fuentes: **La República** (sitemap master) + **El Comercio** (sitemaps por sección; se invoca desde el daily de La República)
+- 8 fuentes activas (SOURCE_ID 1–8). Todas se ejecutan en modo `--daily`/`--today`. El modo `--date` también activa `_run_daily()` (fix: line 734 de main.py).
 - Flags: `--today` (día actual + daily), `--daily` (itera día a día), `--date YYYY-MM-DD`, `--start YYYY-MM-DD` / `--end YYYY-MM-DD`, `--db` (escribe a BD), `--workers N`
 - Output JSON: `backend/data/lima_callao_news_YYYYMMDD_HHMMSS.json`
 - Clasificación geográfica: keyword/regex contra distritos de Lima + Callao (ubigeos hardcodeados en `DISTRICT_UBIGEO`)
-- `db_writer.py`: raw SQL async, sin ORM. Inserta en `noticias` + `noticias_contenido` + `scraping_logs` + `fuentes_seeds` + `pipeline_jobs` (chunking auto-trigger).
+- `db_writer.py`: raw SQL async, sin ORM. Inserta en `noticias` + `noticias_contenido` + `scraping_logs` + `fuentes_seeds` + `pipeline_jobs` (chunking auto-trigger). Dedup: solo `ON CONFLICT (url_original)`; `hash_contenido`/`hash_titulo` se calculan pero no se usan para detectar duplicados.
 - También expuesto via API: `POST /api/admin/scraping/run` (async, streaming logs)
+
+#### Fuentes
+
+| ID | Slug | Fuente | Método | Archivo |
+|:--:|------|--------|--------|---------|
+| 1 | `larepublica` | La República | Sitemap XML | `main.py` (clase `LimaCallaoNewsScraper`) |
+| 2 | `elcomercio` | El Comercio | Sitemaps por sección | `sources/elcomercio.py` |
+| 3 | `peru21` | Peru21 | **HTML sections** (sitemap roto) | `sources/peru21.py` |
+| 4 | `correo` | Diario Correo | RSS Arc XP | `sources/correo.py` |
+| 5 | `gestion` | Gestión | RSS Arc XP | `sources/gestion.py` |
+| 6 | `trome` | Trome | RSS Arc XP | `sources/trome.py` |
+| 7 | `ojo` | Ojo | RSS Arc XP | `sources/ojo.py` |
+| 8 | `larazon` | La Razón | Sitemap WordPress | `sources/larazon.py` |
+
+#### Patrones de fuente
+
+| Plataforma | Base | Fuentes |
+|-----------|------|---------|
+| Arc XP RSS | `_arc_rss.py` → `ArcXpRssScraper` | Correo, Gestion, Trome, Ojo |
+| HTML sections | `peru21.py` → `Peru21Scraper` | Peru21 (sitemap roto, scrapea `/{seccion}/`) |
+| Sitemap XML | propia clase en `main.py` o `sources/` | La República, El Comercio, Larazon |
+
+#### Gotchas del scraper
+
+- **`engine.dispose()` obligatorio**: entre cada `asyncio.run()` en `main.py`, hacer `await engine.dispose()` para limpiar el pool de conexiones. Si no, asyncpg lanza `Future attached to a different loop`.
+- **`--date` activa `_run_daily()`**: antes solo `--today` lo hacía; `--date` iba a `_run_batch()` (solo LR). Fix en main.py:734.
+- **Peru21**: sitemap inservible (lastmod de 2012). Se scrapean páginas de sección (`/lima/`, `/politica/`, etc.) con fechas confiables del HTML.
+- **Larazon**: Yoast SEO devuelve `articleSection` como array `["Actualidad"]`, no string. Se tomó el primer elemento en `extract_article()`.
+- **Ojo**: no todas las section feeds RSS responden con items. Usar solo las confirmadas: `actualidad, politica, locomundo, internacional, ciudad, mujer, columnistas`.
+- **Arc XP base**: El RSS incluye `<content:encoded>` con HTML completo → no se necesita scrapear cada artículo individualmente. ~6 HTTP requests por fuente por día.
+- **`_scrape_rss_source()`**: helper compartido en `main.py` para todas las fuentes Arc XP RSS. Recibe la clase como parámetro.
 
 ### Migraciones (Alembic)
 

@@ -21,11 +21,9 @@ LARAZON_CATEGORY_MAP = {
 }
 
 
-def _normalize_larazon_category(cat: str | None) -> str | None:
-    if not cat:
-        return None
-    key = cat.lower().strip()
-    return LARAZON_CATEGORY_MAP.get(key, cat.title())
+def _normalize_larazon_category(cat: str | None, titulo: str = "") -> str | None:
+    from src.scraper.category_inference import infer_categoria
+    return infer_categoria(cat)
 
 
 class LarazonScraper:
@@ -158,14 +156,15 @@ class LarazonScraper:
         )
 
         path_parts = [p for p in urlparse(url).path.split("/") if p]
-        seccion_fuente = path_parts[0] if path_parts else None
 
-        categoria_principal = (
-            json_ld.get("articleSection")
-            or self._meta(soup, "article:section")
-        )
-        if isinstance(categoria_principal, list):
-            categoria_principal = categoria_principal[0] if categoria_principal else None
+        raw_section = json_ld.get("articleSection")
+        if isinstance(raw_section, list):
+            raw_section = raw_section[0] if raw_section else None
+        if not raw_section:
+            raw_section = self._meta(soup, "article:section")
+        seccion_fuente = raw_section.lower() if isinstance(raw_section, str) and raw_section else (path_parts[0] if path_parts else None)
+
+        categoria_principal = raw_section
         if not categoria_principal and seccion_fuente:
             categoria_principal = seccion_fuente
 
@@ -188,7 +187,7 @@ class LarazonScraper:
             "subtitulo": subtitulo,
             "autor": autor,
             "seccion_fuente": seccion_fuente,
-            "categoria_principal": _normalize_larazon_category(categoria_principal),
+            "categoria_principal": _normalize_larazon_category(categoria_principal, titulo),
             "fecha_publicacion": fecha_publicacion,
             "fecha_actualizacion": fecha_actualizacion,
             "content": content,

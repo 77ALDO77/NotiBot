@@ -33,11 +33,9 @@ EC_CATEGORY_MAP = {
 }
 
 
-def _normalize_ec_category(cat: str | None) -> str | None:
-    if not cat:
-        return None
-    key = cat.lower().strip()
-    return EC_CATEGORY_MAP.get(key, cat.title())
+def _normalize_ec_category(cat: str | None, titulo: str = "") -> str | None:
+    from src.scraper.category_inference import infer_categoria
+    return infer_categoria(cat)
 
 
 class ElComercioScraper:
@@ -194,7 +192,7 @@ class ElComercioScraper:
             "subtitulo": subtitulo,
             "autor": autor,
             "seccion_fuente": seccion_fuente,
-            "categoria_principal": _normalize_ec_category(categoria_principal),
+            "categoria_principal": _normalize_ec_category(categoria_principal, titulo),
             "fecha_publicacion": fecha_publicacion,
             "fecha_actualizacion": fecha_actualizacion,
             "content": content,

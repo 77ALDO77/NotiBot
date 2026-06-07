@@ -89,7 +89,7 @@ class ArcXpRssScraper:
             if seccion_fuente == "edicion" and len(path_parts) > 1:
                 seccion_fuente = path_parts[1]
 
-            categoria_principal = self._normalize_category(seccion_fuente)
+            categoria_principal = self._normalize_category(seccion_fuente, titulo=titulo)
 
             articles.append({
                 "url": url,
@@ -109,5 +109,6 @@ class ArcXpRssScraper:
         return articles
 
     @staticmethod
-    def _normalize_category(cat: str | None) -> str | None:
-        return cat
+    def _normalize_category(cat: str | None, titulo: str = "") -> str | None:
+        from src.scraper.category_inference import infer_categoria
+        return infer_categoria(cat, titulo)

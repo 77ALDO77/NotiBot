@@ -37,6 +37,7 @@ async def list_noticias_admin(
     db: AsyncSession = Depends(get_db),
     scope: Optional[str] = Query(None),
     estado: Optional[str] = Query(None, alias="estado_procesamiento"),
+    categoria: Optional[str] = Query(None, alias="categoria_principal"),
     limit: int = Query(20, le=100),
     offset: int = Query(0),
 ):
@@ -58,6 +59,8 @@ async def list_noticias_admin(
         stmt = stmt.where(Noticia.scope_geografico == scope)
     if estado:
         stmt = stmt.where(NoticiaAnalisis.estado_procesamiento == estado)
+    if categoria:
+        stmt = stmt.where(Noticia.categoria_principal == categoria)
 
     count_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
     total = count_result.scalar()

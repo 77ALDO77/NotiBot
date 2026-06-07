@@ -22,10 +22,3 @@ class TromeScraper(ArcXpRssScraper):
         "actualidad", "deportes", "espectaculos",
         "mundo", "tendencias",
     ]
-
-    @staticmethod
-    def _normalize_category(cat: str | None) -> str | None:
-        if not cat:
-            return None
-        key = cat.lower().strip()
-        return TROME_CATEGORY_MAP.get(key, cat.title())

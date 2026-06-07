@@ -23,10 +23,3 @@ class CorreoScraper(ArcXpRssScraper):
         "politica", "peru", "mundo", "deportes",
         "economia", "espectaculos",
     ]
-
-    @staticmethod
-    def _normalize_category(cat: str | None) -> str | None:
-        if not cat:
-            return None
-        key = cat.lower().strip()
-        return CORREO_CATEGORY_MAP.get(key, cat.title())

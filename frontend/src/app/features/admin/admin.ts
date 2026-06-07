@@ -77,8 +77,9 @@ interface GraphNode {
   tokens: number;
   titulo: string;
   categoria: string;
-  scope: string;
+  scope: string | null;
   preview: string;
+  chunks_count?: number;
 }
 
 interface GraphEdge {
@@ -102,6 +103,7 @@ interface Vector3DPoint {
   chunk_index: number;
   tokens: number;
   preview: string;
+  chunks_count?: number;
 }
 
 type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes';
@@ -312,12 +314,29 @@ type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes';
                   <button class="btn-sm" [class.btn]="vectorView() === 'grafo'" (click)="switchToView('grafo')">Grafo Force</button>
                 </div>
                 @if (vectorView() === '3d') {
+                  <div class="view-toggle">
+                    <button class="btn-sm" [class.btn]="vectorModo() === 'articulos'" (click)="vectorModo.set('articulos'); loadVectores()">Artículos</button>
+                    <button class="btn-sm" [class.btn]="vectorModo() === 'chunks'" (click)="vectorModo.set('chunks'); loadVectores()">Chunks</button>
+                  </div>
                   <select [ngModel]="vectorColorBy()" (ngModelChange)="vectorColorBy.set($event); renderPlot()" class="select">
+                    <option value="categoria">Colorear: Categoría</option>
                     <option value="seccion">Colorear: Sección</option>
                     <option value="scope">Colorear: Alcance</option>
                     <option value="distrito">Colorear: Distrito</option>
-                    <option value="categoria">Colorear: Categoría</option>
                     <option value="provincia">Colorear: Provincia</option>
+                  </select>
+                  <select [ngModel]="vectorCategoria()" (ngModelChange)="vectorCategoria.set($event); loadVectores()" class="select">
+                    <option value="">Categoría: Todas</option>
+                    <option value="Política">Política</option>
+                    <option value="Economía">Economía</option>
+                    <option value="Sociedad">Sociedad</option>
+                    <option value="Deportes">Deportes</option>
+                    <option value="Mundo">Mundo</option>
+                    <option value="Espectáculos">Espectáculos</option>
+                    <option value="Opinión">Opinión</option>
+                    <option value="Tecnología">Tecnología</option>
+                    <option value="Cultura">Cultura</option>
+                    <option value="Nacional">Nacional</option>
                   </select>
                   <select [ngModel]="vectorScope()" (ngModelChange)="vectorScope.set($event); loadVectores()" class="select">
                     <option value="">Filtro: Todos</option>
@@ -325,13 +344,37 @@ type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes';
                     <option value="callao">Solo Callao</option>
                   </select>
                 }
-                <span class="filters__total">{{ vectorView() === '3d' ? vectorTotal() + ' puntos' : graphNodes().length + ' nodos' }}</span>
+                <span class="filters__total">{{ vectorView() === '3d' ? vectorTotal() + (vectorModo() === 'articulos' ? ' artículos' : ' chunks') : graphNodes().length + ' nodos' }}</span>
                 <button class="btn" (click)="generateVectors()" [disabled]="vectorLoading()">
                   {{ vectorLoading() ? 'Generando...' : 'Generar embeddings' }}
                 </button>
               </div>
               @if (vectorView() === '3d') {
-                <p class="legend-note">Tamaño = tokens · Hover = detalles · Leyenda interactiva</p>
+                <p class="legend-note">Tamaño = tokens · Hover = detalles · Leyenda interactiva · {{ vectorModo() === 'articulos' ? 'Puntos = artículos' : 'Puntos = chunks' }}</p>
+              }
+              @if (vectorView() === 'grafo') {
+                <div class="view-toggle">
+                  <button class="btn-sm" [class.btn]="vectorGraphModo() === 'articulos'" (click)="vectorGraphModo.set('articulos'); loadGraph()">Artículos</button>
+                  <button class="btn-sm" [class.btn]="vectorGraphModo() === 'chunks'" (click)="vectorGraphModo.set('chunks'); loadGraph()">Chunks</button>
+                </div>
+                <select [ngModel]="vectorCategoria()" (ngModelChange)="vectorCategoria.set($event); loadGraph()" class="select">
+                  <option value="">Categoría: Todas</option>
+                  <option value="Política">Política</option>
+                  <option value="Economía">Economía</option>
+                  <option value="Sociedad">Sociedad</option>
+                  <option value="Deportes">Deportes</option>
+                  <option value="Mundo">Mundo</option>
+                  <option value="Espectáculos">Espectáculos</option>
+                  <option value="Opinión">Opinión</option>
+                  <option value="Tecnología">Tecnología</option>
+                  <option value="Cultura">Cultura</option>
+                  <option value="Nacional">Nacional</option>
+                </select>
+                <div class="sim-slider">
+                  <label>Similitud TF-IDF: {{ (vectorGraphSim() * 100).toFixed(0) }}%</label>
+                  <input type="range" min="5" max="60" step="1" [value]="vectorGraphSim() * 100"
+                         (input)="vectorGraphSim.set(($any($event.target).value / 100)); loadGraph()" />
+                </div>
               }
             </div>
             <div class="card">
@@ -618,7 +661,11 @@ export class AdminComponent implements OnInit {
   vectorTotal = signal(0);
   vectorLoading = signal(false);
   vectorScope = signal('');
+  vectorCategoria = signal('');
   vectorColorBy = signal<'scope' | 'distrito' | 'seccion' | 'categoria' | 'provincia'>('seccion');
+  vectorModo = signal<'chunks' | 'articulos'>('articulos');
+  vectorGraphModo = signal<'chunks' | 'articulos'>('articulos');
+  vectorGraphSim = signal(0.15);
   vectorView = signal<'3d' | 'grafo'>('3d');
 
   graphNodes = signal<GraphNode[]>([]);
@@ -764,8 +811,10 @@ export class AdminComponent implements OnInit {
     this.vectorLoading.set(true);
     const params = new URLSearchParams();
     if (this.vectorScope()) params.set('scope', this.vectorScope());
+    if (this.vectorCategoria()) params.set('categoria_principal', this.vectorCategoria());
+    const endpoint = this.vectorModo() === 'articulos' ? '/vectores/3d/articulos' : '/vectores/3d';
     this.http.get<{ total: number; points: Vector3DPoint[] }>(
-      `${this.apiUrl}/vectores/3d?${params}`
+      `${this.apiUrl}${endpoint}?${params}`
     ).subscribe({
       next: (data) => {
         this.vectorPoints.set(data.points);
@@ -813,20 +862,24 @@ export class AdminComponent implements OnInit {
         type: 'scatter3d',
         name,
         marker: {
-          size: g.map(p => Math.max(4, Math.min(p.tokens / 50, 14))),
+          size: g.map(p => Math.max(4, Math.min(p.tokens / 50, 16))),
           color: palette[i % palette.length],
           opacity: 0.8,
           line: { width: 0 },
         },
-        text: g.map(p =>
-          `<b>${p.titulo}</b><br>Chunk #${p.chunk_index} · ${p.tokens} tokens<br><i>${p.preview}</i><br>${p.distrito || ''} · ${p.seccion_fuente || ''}`
-        ),
+        text: g.map(p => {
+          const title = `<b>${p.titulo}</b><br>`;
+          const info = this.vectorModo() === 'articulos'
+            ? `${p.tokens} tokens · ${p.chunks_count || 1} chunks<br><i>${p.preview}</i><br>${p.categoria_principal || ''} · ${p.distrito || ''}`
+            : `Chunk #${p.chunk_index} · ${p.tokens} tokens<br><i>${p.preview}</i><br>${p.distrito || ''} · ${p.seccion_fuente || ''}`;
+          return title + info;
+        }),
         hoverinfo: 'text',
       });
     });
 
     const layout: any = {
-      title: `Espacio Vectorial 3D — ${this.vectorTotal()} chunks · Coloreado por ${colorBy}`,
+      title: `Espacio Vectorial 3D — ${this.vectorTotal()} ${this.vectorModo() === 'articulos' ? 'artículos' : 'chunks'} · Coloreado por ${colorBy}`,
       scene: {
         xaxis: { title: '', showticklabels: false, showgrid: true, zeroline: false },
         yaxis: { title: '', showticklabels: false, showgrid: true, zeroline: false },
@@ -917,25 +970,28 @@ export class AdminComponent implements OnInit {
 
   async loadGraph() {
     this.graphLoading.set(true);
-    this.http.get<{ nodes: GraphNode[]; edges: GraphEdge[] }>(`${this.apiUrl}/vectores/graph?max_nodes=200&similarity=0.82`)
+    const params = new URLSearchParams();
+    params.set('similarity', String(this.vectorGraphSim()));
+    params.set('max_nodes', '80');
+    if (this.vectorCategoria()) params.set('categoria_principal', this.vectorCategoria());
+    const endpoint = this.vectorGraphModo() === 'articulos' ? '/vectores/graph/articulos' : '/vectores/graph';
+    this.http.get<{ nodes: GraphNode[]; edges: GraphEdge[] }>(`${this.apiUrl}${endpoint}?${params}`)
       .subscribe({
         next: (data) => {
-          const connectedIds = new Set<number>();
-          for (const e of data.edges) {
-            connectedIds.add(e.source);
-            connectedIds.add(e.target);
-          }
-          data.nodes = data.nodes.filter(n => connectedIds.has(n.id));
           this.graphNodes.set(data.nodes);
           this.graphEdges.set(data.edges);
           this.graphLoading.set(false);
-          setTimeout(() => this.renderForceGraph(), 50);
+          setTimeout(() => this.renderForceGraph(), 150);
         },
-        error: () => this.graphLoading.set(false),
+        error: (err) => {
+          console.error('[Graph] Load failed:', err);
+          this.graphLoading.set(false);
+        },
       });
   }
 
-  async renderForceGraph() {
+  async   renderForceGraph() {
+    try {
     const nodes = this.graphNodes();
     if (!nodes.length) return;
 
@@ -945,14 +1001,14 @@ export class AdminComponent implements OnInit {
     el.innerHTML = '';
 
     const width = el.clientWidth || 900;
-    const height = 550;
+    const height = 600;
 
     const catColors: Record<string, string> = {
       'Sociedad': '#3b82f6', 'Política': '#ef4444', 'Deportes': '#22c55e',
       'Espectáculos': '#f59e0b', 'Opinión': '#8b5cf6', 'Economía': '#06b6d4',
-      'Mundo': '#ec4899', 'Ciencia': '#84cc16', 'Datos': '#6366f1',
-      'Lima': '#f97316', 'Nacional': '#d946ef', 'Cultura': '#14b8a6',
-      'Historia': '#e11d48',
+      'Mundo': '#ec4899', 'Nacional': '#d946ef', 'Cultura': '#14b8a6',
+      'Tecnología': '#6366f1', 'Ciencia': '#84cc16', 'Datos': '#0ea5e9',
+      'Historia': '#e11d48', 'Tendencia': '#f97316',
     };
 
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
@@ -964,29 +1020,46 @@ export class AdminComponent implements OnInit {
       .append('svg')
       .attr('width', width)
       .attr('height', height)
-      .call(d3.zoom().scaleExtent([0.3, 4]).on('zoom', (event) => {
+      .call(d3.zoom().scaleExtent([0.3, 5]).on('zoom', (event) => {
         g.attr('transform', event.transform);
-      }) as any)
-      .append('g');
+      }) as any);
 
     const g = svg.append('g');
 
     const color = (d: any) => catColors[d.categoria] || '#94a3b8';
-    const radius = (d: any) => Math.max(4, Math.min(d.tokens / 50, 18));
+    const radius = (d: any) => Math.max(5, Math.min((d.tokens || 100) / 60, 20));
+
+    const categories = [...new Set(nodes.map((n: any) => n.categoria).filter(Boolean))] as string[];
+    const catCenters = new Map<string, { x: number; y: number }>();
+    const spacing = Math.min(width, height) / (categories.length + 1) * 0.7;
+    categories.forEach((cat, i) => {
+      const angle = (i / categories.length) * Math.PI * 2 - Math.PI / 2;
+      catCenters.set(cat, {
+        x: width / 2 + Math.cos(angle) * spacing,
+        y: height / 2 + Math.sin(angle) * spacing,
+      });
+    });
 
     const simulation = d3.forceSimulation(nodes as any)
-      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(60).strength(0.4))
-      .force('charge', d3.forceManyBody().strength(-100))
+      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(70).strength(0.5))
+      .force('charge', d3.forceManyBody().strength(-150))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius((d: any) => radius(d) + 3));
+      .force('collision', d3.forceCollide().radius((d: any) => radius(d) + 4))
+      .force('x', d3.forceX((d: any) => catCenters.get(d.categoria)?.x ?? width / 2).strength(0.08))
+      .force('y', d3.forceY((d: any) => catCenters.get(d.categoria)?.y ?? height / 2).strength(0.08));
 
     const link = g.append('g')
       .selectAll('line')
       .data(links)
       .join('line')
-      .attr('stroke', '#cbd5e1')
-      .attr('stroke-width', d => Math.max(0.5, d.similarity * 3))
-      .attr('stroke-opacity', 0.6);
+      .attr('stroke', d => {
+        const s = d.similarity;
+        if (s > 0.9) return '#475569';
+        if (s > 0.8) return '#94a3b8';
+        return '#cbd5e1';
+      })
+      .attr('stroke-width', d => Math.max(0.5, d.similarity * 3.5))
+      .attr('stroke-opacity', d => Math.max(0.2, d.similarity * 0.7));
 
     const node = g.append('g')
       .selectAll('circle')
@@ -995,8 +1068,9 @@ export class AdminComponent implements OnInit {
       .attr('r', (d: any) => radius(d))
       .attr('fill', (d: any) => color(d))
       .attr('stroke', '#fff')
-      .attr('stroke-width', 1)
-      .attr('opacity', 0.85)
+      .attr('stroke-width', 1.5)
+      .attr('opacity', 0.9)
+      .attr('cursor', 'pointer')
       .call(d3.drag()
         .on('start', (event: any, d: any) => {
           if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -1008,39 +1082,80 @@ export class AdminComponent implements OnInit {
           d.fx = null; d.fy = null;
         }) as any);
 
+    const labels = g.append('g')
+      .selectAll('text')
+      .data(nodes.filter((n: any) => (n.tokens || 0) > 200))
+      .join('text')
+      .text((d: any) => d.titulo.length > 35 ? d.titulo.substring(0, 32) + '...' : d.titulo)
+      .attr('font-size', '9px')
+      .attr('font-family', 'Manrope, sans-serif')
+      .attr('fill', '#334155')
+      .attr('text-anchor', 'middle')
+      .attr('dy', (d: any) => -radius(d) - 4)
+      .attr('pointer-events', 'none');
+
+    // Legend
+    const legendG = svg.append('g')
+      .attr('transform', 'translate(10, 10)');
+
+    categories.forEach((cat, i) => {
+      const y = i * 20;
+      legendG.append('rect')
+        .attr('x', 0).attr('y', y)
+        .attr('width', 12).attr('height', 12)
+        .attr('rx', 2)
+        .attr('fill', catColors[cat] || '#94a3b8');
+      legendG.append('text')
+        .attr('x', 18).attr('y', y + 10)
+        .text(cat)
+        .attr('font-size', '11px')
+        .attr('font-family', 'Manrope, sans-serif')
+        .attr('fill', '#334155');
+    });
+
     const tooltip = d3.select('body').append('div')
       .attr('class', 'graph-tooltip')
       .style('position', 'absolute')
       .style('background', '#1a1a2e')
       .style('color', '#e2e8f0')
-      .style('padding', '8px 12px')
-      .style('border-radius', '6px')
+      .style('padding', '10px 14px')
+      .style('border-radius', '8px')
       .style('font-size', '12px')
       .style('font-family', 'Manrope, sans-serif')
-      .style('max-width', '320px')
+      .style('max-width', '340px')
       .style('pointer-events', 'none')
       .style('opacity', '0')
-      .style('z-index', '9999');
+      .style('z-index', '9999')
+      .style('line-height', '1.4');
 
     node.on('mouseover', (event: any, d: any) => {
+        const modo = this.vectorGraphModo();
+        const cat = d.categoria || 'Sin categoría';
+        const extra = modo === 'articulos' && (d as any).chunks_count
+          ? `<br><span style="color:#64748b">${(d as any).chunks_count} chunks · ${d.tokens} tokens</span>`
+          : `<br><span style="color:#64748b">Chunk #${d.chunk_index} · ${d.tokens} tokens</span>`;
         tooltip.style('opacity', '1')
-          .html(`<b>${d.titulo}</b><br><span style="color:#94a3b8">Chunk #${d.chunk_index} · ${d.tokens} tokens</span><br><i style="color:#cbd5e1">${d.preview}</i>`);
-        d3.select(event.target).attr('stroke', '#333').attr('stroke-width', 2);
+          .html(`<span style="color:${catColors[cat] || '#94a3b8'};font-weight:600">${cat}</span><br><b>${d.titulo}</b>${extra}<br><i style="color:#cbd5e1;font-size:11px">${d.preview}</i>`);
+        d3.select(event.target).attr('stroke', '#1e293b').attr('stroke-width', 3);
       })
       .on('mousemove', (event: any) => {
-        tooltip.style('left', (event.pageX + 10) + 'px')
-          .style('top', (event.pageY - 30) + 'px');
+        tooltip.style('left', (event.pageX + 12) + 'px')
+          .style('top', (event.pageY - 20) + 'px');
       })
       .on('mouseout', (event: any) => {
         tooltip.style('opacity', '0');
-        d3.select(event.target).attr('stroke', '#fff').attr('stroke-width', 1);
+        d3.select(event.target).attr('stroke', '#fff').attr('stroke-width', 1.5);
       });
 
     simulation.on('tick', () => {
       link.attr('x1', (d: any) => d.source.x).attr('y1', (d: any) => d.source.y)
           .attr('x2', (d: any) => d.target.x).attr('y2', (d: any) => d.target.y);
       node.attr('cx', (d: any) => d.x).attr('cy', (d: any) => d.y);
+      labels.attr('x', (d: any) => d.x).attr('y', (d: any) => d.y);
     });
+    } catch (e) {
+      console.error('[Graph] Render error:', e);
+    }
   }
 
   generateVectors() {

@@ -32,6 +32,7 @@ def build_news_query(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     q: Optional[str] = None,
+    categoria_principal: Optional[str] = None,
 ):
     stmt = (
         select(
@@ -70,6 +71,8 @@ def build_news_query(
             Noticia.titulo.ilike(f"%{q}%")
             | NoticiaContenido.contenido_limpio.ilike(f"%{q}%")
         )
+    if categoria_principal:
+        stmt = stmt.where(Noticia.categoria_principal == categoria_principal)
 
     return stmt
 

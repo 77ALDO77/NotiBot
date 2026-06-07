@@ -31,10 +31,11 @@ async def list_news(
     date_from: Optional[date] = Query(None, alias="fecha_desde"),
     date_to: Optional[date] = Query(None, alias="fecha_hasta"),
     q: Optional[str] = Query(None, description="Search in title and content"),
+    categoria_principal: Optional[str] = Query(None, alias="categoria"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    stmt = build_news_query(scope, distrito, provincia, date_from, date_to, q)
+    stmt = build_news_query(scope, distrito, provincia, date_from, date_to, q, categoria_principal)
     result = await paginate(db, stmt, limit=limit, offset=offset, serializer=serialize_news_row)
     result["limit"] = limit
     result["offset"] = offset

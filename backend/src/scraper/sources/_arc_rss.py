@@ -83,6 +83,11 @@ class ArcXpRssScraper:
                 for skip in soup.select("script, style, div.publicidad, div[style*='#25D366']"):
                     skip.decompose()
                 contenido_limpio = soup.get_text(separator=" ", strip=True)
+                # Fallback image from encoded content
+                if not url_imagen:
+                    first_img = soup.find("img")
+                    if first_img and first_img.get("src"):
+                        url_imagen = first_img["src"]
 
             path_parts = [p for p in urlparse(url).path.split("/") if p]
             seccion_fuente = path_parts[0] if path_parts else None

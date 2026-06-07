@@ -1,35 +1,82 @@
 <section class="feed">
   <header class="feed__header">
-    <h1 class="feed__title display-lg">Portada</h1>
-    <p class="feed__subtitle body-lg">Las noticias que importan en Lima y Callao, seleccionadas para ti.</p>
+    <h1 class="feed__title">Portada</h1>
+    <p class="feed__subtitle">
+      {{ total() }} noticias ·
+      {{ currentCategory() === 'Todas' ? 'Todas las categorías' : currentCategory() }}
+    </p>
   </header>
 
-  <div class="feed__grid">
-    @for (article of articles(); track article.id) {
-      <article class="card" [routerLink]="['/article', article.id]">
-        @if (article.imageUrl) {
-          <div class="card__image">
-            <img [src]="article.imageUrl" [alt]="article.headline" loading="lazy" />
-          </div>
-        }
+  <nav class="feed__tabs">
+    @for (cat of categories(); track cat) {
+      <button
+        class="feed__tab"
+        [class.feed__tab--active]="currentCategory() === cat"
+        (click)="selectCategory(cat)"
+      >{{ cat }}</button>
+    }
+  </nav>
+
+  <div class="feed__list">
+    @for (item of articles(); track item.id) {
+      <article class="card" [routerLink]="['/article', item.id]">
+        <div class="card__image">
+          @if (item.url_imagen) {
+            <img
+              [src]="item.url_imagen"
+              [alt]="item.titulo"
+              loading="lazy"
+              (error)="$any($event.target).style.display='none'"
+            />
+          } @else {
+            <div class="card__placeholder" [attr.data-cat]="item.categoria_principal">
+              <span class="card__placeholder-icon">📰</span>
+            </div>
+          }
+        </div>
+
         <div class="card__body">
           <div class="card__meta">
-            <span class="label-sm card__category">{{ article.category }}</span>
-            <span class="label-sm card__source">{{ article.source }}</span>
-            <span class="label-sm card__time">{{ article.timeAgo }}</span>
+            <span class="card__category">{{ item.categoria_principal || 'General' }}</span>
+            <span class="card__dot">·</span>
+            <span class="card__source">{{ item.sourceLabel }}</span>
+            <span class="card__dot">·</span>
+            <span class="card__time">{{ item.timeAgo }}</span>
           </div>
-          <h3 class="card__headline headline-sm">{{ article.headline }}</h3>
-          <p class="card__excerpt body-md">{{ article.excerpt }}</p>
-        </div>
-        <div class="card__reactions">
-          @for (r of reactions; track r.key) {
-            <button class="card__reaction" [attr.aria-label]="r.label" (click)="$event.preventDefault(); $event.stopPropagation()">
-              <span class="card__reaction-icon">{{ r.icon }}</span>
-              <span class="label-sm card__reaction-count">{{ article.reactions[r.key] }}</span>
-            </button>
+          <h3 class="card__headline">{{ item.titulo }}</h3>
+          @if (item.subtitulo) {
+            <p class="card__excerpt">{{ item.subtitulo }}</p>
           }
+          @if (item.distrito !== null) {
+            <div class="card__district">
+              📍 {{ item.distrito }}
+              @if (item.provincia) {, {{ item.provincia }} }
+            </div>
+          }
+        </div>
+
+        <div class="card__reactions">
+          <span class="card__reaction">❤️ {{ item.reactions.likes | number }}</span>
+          <span class="card__reaction">💬 {{ item.reactions.interested | number }}</span>
+          <span class="card__reaction">😮 {{ item.reactions.surprise | number }}</span>
+          <span class="card__reaction">😴 {{ item.reactions.sleep | number }}</span>
         </div>
       </article>
     }
+
+    @if (loading()) {
+      @for (i of [1, 2, 3]; track i) {
+        <div class="card card--skeleton">
+          <div class="card__image skeleton-box"></div>
+          <div class="card__body">
+            <div class="skeleton-line skeleton-line--short"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line skeleton-line--medium"></div>
+          </div>
+        </div>
+      }
+    }
+
+    <div #sentinel class="feed__sentinel"></div>
   </div>
 </section>

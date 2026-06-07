@@ -1,88 +1,153 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, ElementRef, viewChild, afterNextRender, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
+import { DecimalPipe } from '@angular/common';
 
 interface NewsItem {
-  id: string;
-  category: string;
-  headline: string;
-  excerpt: string;
-  source: string;
-  timeAgo: string;
-  imageUrl: string;
-  reactions: {
-    likes: number;
-    sleep: number;
-    sad: number;
-    surprise: number;
-    interested: number;
+  id: number;
+  titulo: string;
+  subtitulo: string | null;
+  autor: string | null;
+  url_original: string;
+  url_imagen: string | null;
+  scope_geografico: string;
+  provincia: string | null;
+  distrito: string | null;
+  fecha_publicacion: string | null;
+  slug_fuente: string;
+  fuente_nombre: string | null;
+  seccion_fuente: string | null;
+  categoria_principal: string | null;
+}
+
+interface NewsResponse {
+  items: NewsItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  larepublica: 'La República',
+  elcomercio: 'El Comercio',
+  peru21: 'Peru21',
+  correo: 'Correo',
+  gestion: 'Gestión',
+  trome: 'Trome',
+  ojo: 'Ojo',
+  larazon: 'La Razón',
+};
+
+const CATEGORIES = [
+  'Todas', 'Política', 'Sociedad', 'Deportes', 'Economía',
+  'Mundo', 'Espectáculos', 'Opinión', 'Nacional', 'Tecnología',
+];
+
+function randomReactions() {
+  return {
+    likes: Math.floor(Math.random() * 50) + 1,
+    sleep: Math.floor(Math.random() * 10),
+    sad: Math.floor(Math.random() * 8),
+    surprise: Math.floor(Math.random() * 20) + 1,
+    interested: Math.floor(Math.random() * 30) + 1,
   };
+}
+
+function timeAgo(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return d.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
 }
 
 @Component({
   selector: 'app-news-feed',
-  imports: [RouterLink],
+  imports: [RouterLink, DecimalPipe],
   templateUrl: './news-feed.html',
   styleUrl: './news-feed.scss',
 })
 export class NewsFeed {
-  protected readonly articles = signal<NewsItem[]>([
-    {
-      id: '1',
-      category: 'Política',
-      headline: 'Congreso debate reforma del sistema de transporte público en Lima Metropolitana',
-      excerpt: 'La Comisión de Transportes evalúa nuevas medidas para descongestionar las principales vías de la capital. Se espera un dictamen en las próximas semanas.',
-      source: 'La República',
-      timeAgo: '2h',
-      imageUrl: '',
-      reactions: { likes: 245, sleep: 12, sad: 8, surprise: 34, interested: 89 },
-    },
-    {
-      id: '2',
-      category: 'Callao',
-      headline: 'Inician obras de ampliación del Aeropuerto Jorge Chávez',
-      excerpt: 'El MTC anunció el inicio de la segunda fase de ampliación que duplicará la capacidad operativa del principal terminal aéreo del país.',
-      source: 'El Comercio',
-      timeAgo: '4h',
-      imageUrl: '',
-      reactions: { likes: 512, sleep: 3, sad: 5, surprise: 67, interested: 203 },
-    },
-    {
-      id: '3',
-      category: 'Seguridad',
-      headline: 'Serenazgo de Lima incorpora 200 nuevas unidades de patrullaje',
-      excerpt: 'La Municipalidad Metropolitana presentó los nuevos vehículos equipados con tecnología de videovigilancia y conexión directa al centro de control.',
-      source: 'Andina',
-      timeAgo: '6h',
-      imageUrl: '',
-      reactions: { likes: 189, sleep: 22, sad: 15, surprise: 41, interested: 56 },
-    },
-    {
-      id: '4',
-      category: 'Cultura',
-      headline: 'Festival de la Gastronomía Limeña reúne a más de 10,000 visitantes',
-      excerpt: 'El Parque de la Exposición se convirtió en el epicentro de la cocina criolla con más de 50 restaurantes participantes y shows en vivo.',
-      source: 'RPP',
-      timeAgo: '8h',
-      imageUrl: '',
-      reactions: { likes: 320, sleep: 5, sad: 1, surprise: 28, interested: 145 },
-    },
-    {
-      id: '5',
-      category: 'Deportes',
-      headline: 'Universitario vs Alianza Lima: clásico del fútbol peruano termina en empate',
-      excerpt: 'El Monumental fue el escenario de un partido intenso que mantuvo a los hinchas al borde de sus asientos hasta el pitazo final.',
-      source: 'Depor',
-      timeAgo: '10h',
-      imageUrl: '',
-      reactions: { likes: 890, sleep: 2, sad: 45, surprise: 112, interested: 67 },
-    },
-  ]);
+  private http = inject(HttpClient);
 
-  protected readonly reactions = [
-    { key: 'likes' as const, icon: '👍', label: 'Me gusta' },
-    { key: 'sleep' as const, icon: '💤', label: 'Aburrido' },
-    { key: 'sad' as const, icon: '😢', label: 'Triste' },
-    { key: 'surprise' as const, icon: '😲', label: 'Sorprendente' },
-    { key: 'interested' as const, icon: '🔔', label: 'Interesado' },
-  ];
+  protected readonly articles = signal<(NewsItem & { reactions: ReturnType<typeof randomReactions>; timeAgo: string; sourceLabel: string })[]>([]);
+  protected readonly total = signal(0);
+  protected readonly loading = signal(false);
+  protected readonly hasMore = signal(true);
+  protected readonly currentCategory = signal('Todas');
+  protected readonly categories = signal(CATEGORIES);
+
+  private offset = 0;
+  private readonly pageSize = 10;
+  private sentinel = viewChild<ElementRef>('sentinel');
+
+  constructor() {
+    afterNextRender(() => this.loadMore());
+  }
+
+  ngAfterViewInit() {
+    this.setupObserver();
+  }
+
+  private setupObserver() {
+    const sentinelEl = this.sentinel();
+    if (!sentinelEl) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !this.loading() && this.hasMore()) {
+          this.loadMore();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(sentinelEl.nativeElement);
+  }
+
+  selectCategory(cat: string) {
+    if (this.loading()) return;
+    this.currentCategory.set(cat);
+    this.offset = 0;
+    this.articles.set([]);
+    this.hasMore.set(true);
+    setTimeout(() => {
+      this.loadMore();
+      this.setupObserver();
+    }, 50);
+  }
+
+  private loadMore() {
+    if (this.loading()) return;
+    this.loading.set(true);
+
+    const params = new URLSearchParams();
+    params.set('limit', String(this.pageSize));
+    params.set('offset', String(this.offset));
+    const cat = this.currentCategory();
+    if (cat !== 'Todas') params.set('categoria', cat);
+
+    this.http.get<NewsResponse>(`/api/news?${params}`).subscribe({
+      next: (data) => {
+        const enriched = data.items.map((item) => ({
+          ...item,
+          reactions: randomReactions(),
+          timeAgo: timeAgo(item.fecha_publicacion),
+          sourceLabel: SOURCE_LABELS[item.slug_fuente] || item.fuente_nombre || item.slug_fuente,
+        }));
+        this.articles.update((prev) => [...prev, ...enriched]);
+        this.total.set(data.total);
+        this.offset += data.items.length;
+        this.hasMore.set(this.offset < data.total);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+      },
+    });
+  }
 }

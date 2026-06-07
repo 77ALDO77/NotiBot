@@ -1,13 +1,35 @@
-import { Component, signal, Input as RouteInput } from '@angular/core';
+import { Component, signal, Input as RouteInput, inject, computed } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 
-interface Comment {
-  id: string;
-  author: string;
-  timeAgo: string;
-  content: string;
-  replies: Comment[];
+interface ArticleData {
+  id: number;
+  titulo: string;
+  subtitulo: string | null;
+  autor: string | null;
+  url_original: string;
+  url_imagen: string | null;
+  scope_geografico: string;
+  provincia: string | null;
+  distrito: string | null;
+  fecha_publicacion: string | null;
+  slug_fuente: string;
+  seccion_fuente: string | null;
+  categoria_principal: string | null;
+  contenido_limpio: string | null;
+  contenido_html: string | null;
 }
+
+const SOURCE_LABELS: Record<string, string> = {
+  larepublica: 'La República',
+  elcomercio: 'El Comercio',
+  peru21: 'Peru21',
+  correo: 'Correo',
+  gestion: 'Gestión',
+  trome: 'Trome',
+  ojo: 'Ojo',
+  larazon: 'La Razón',
+};
 
 @Component({
   selector: 'app-article-detail',
@@ -17,57 +39,51 @@ interface Comment {
 })
 export class ArticleDetail {
   @RouteInput() id?: string;
+  private http = inject(HttpClient);
 
-  protected readonly article = signal({
-    category: 'Política',
-    headline: 'Congreso debate reforma del sistema de transporte público en Lima Metropolitana',
-    source: 'La República',
-    timeAgo: '2h',
-    author: 'Carlos Méndez',
-    body: `La Comisión de Transportes y Comunicaciones del Congreso de la República inició hoy el debate del proyecto de ley que busca reformar integralmente el sistema de transporte público en Lima Metropolitana y Callao.
+  protected readonly article = signal<ArticleData | null>(null);
+  protected readonly loading = signal(true);
+  protected readonly error = signal('');
 
-La iniciativa, presentada por un grupo multipartidario, propone la creación de una Autoridad Única de Transporte que centralice las decisiones sobre rutas, tarifas y fiscalización de las unidades de transporte.
-
-"Es fundamental ordenar el caos vehicular que afecta a millones de limeños todos los días", señaló el presidente de la comisión durante la sesión matutina.
-
-El proyecto contempla además la implementación de un sistema de pago electrónico unificado, la renovación progresiva de la flota de buses por unidades eléctricas y la ampliación de las ciclovías en toda el área metropolitana.
-
-Representantes de los transportistas expresaron su preocupación por los plazos de implementación, mientras que las organizaciones de usuarios respaldaron la propuesta como "un paso necesario para mejorar la calidad de vida en la capital".
-
-Se espera que el debate continúe la próxima semana con la participación de expertos en movilidad urbana y representantes de municipalidades distritales.`,
-    reactions: { likes: 245, sleep: 12, sad: 8, surprise: 34, interested: 89 },
+  protected readonly sourceLabel = computed(() => {
+    const a = this.article();
+    if (!a) return '';
+    return SOURCE_LABELS[a.slug_fuente] || a.slug_fuente;
   });
 
-  protected readonly comments = signal<Comment[]>([
-    {
-      id: 'c1',
-      author: 'María Gutiérrez',
-      timeAgo: '1h',
-      content: 'Ojalá esta vez sea en serio. Llevamos años esperando una reforma real del transporte.',
-      replies: [
-        {
-          id: 'c1r1',
-          author: 'Pedro Castillo',
-          timeAgo: '45m',
-          content: 'Totalmente de acuerdo. La ATU actual no tiene verdaderas facultades.',
-          replies: [],
-        },
-      ],
-    },
-    {
-      id: 'c2',
-      author: 'Luis Ramírez',
-      timeAgo: '30m',
-      content: 'Lo importante es que incluyan a los transportistas en el debate. Sin ellos, ninguna reforma funciona.',
-      replies: [],
-    },
-  ]);
+  protected readonly paragraphs = computed(() => {
+    const a = this.article();
+    if (!a?.contenido_limpio) return [];
+    return a.contenido_limpio.split('\n').filter((p) => p.trim().length > 20);
+  });
 
-  protected readonly reactions = [
-    { key: 'likes' as const, icon: '👍', label: 'Me gusta' },
-    { key: 'sleep' as const, icon: '💤', label: 'Aburrido' },
-    { key: 'sad' as const, icon: '😢', label: 'Triste' },
-    { key: 'surprise' as const, icon: '😲', label: 'Sorprendente' },
-    { key: 'interested' as const, icon: '🔔', label: 'Interesado' },
-  ];
+  protected readonly displayDate = computed(() => {
+    const d = this.article()?.fecha_publicacion;
+    if (!d) return '';
+    return new Date(d).toLocaleDateString('es-PE', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  });
+
+  ngOnInit() {
+    if (this.id) {
+      this.http.get<ArticleData>(`/api/news/${this.id}`).subscribe({
+        next: (data) => {
+          this.article.set(data);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.error.set('No se pudo cargar la noticia.');
+          this.loading.set(false);
+        },
+      });
+    }
+  }
+
+  protected readonly reactions = { likes: 42, sleep: 3, sad: 8, surprise: 15, interested: 22 };
 }

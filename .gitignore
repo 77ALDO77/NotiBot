@@ -24,5 +24,3 @@ backend/data/
 .idea/
 *.swp
 *.swo
-#agentes 
-.agente/

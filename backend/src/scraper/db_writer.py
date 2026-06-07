@@ -34,7 +34,13 @@ class NewsDBWriter:
 
         now = utcnow()
         source_names = {"larepublica": ("La Republica", "https://larepublica.pe"),
-                        "elcomercio": ("El Comercio", "https://elcomercio.pe")}
+                        "elcomercio": ("El Comercio", "https://elcomercio.pe"),
+                        "peru21": ("Peru21", "https://peru21.pe"),
+                        "correo": ("Diario Correo", "https://diariocorreo.pe"),
+                        "gestion": ("Gestion", "https://gestion.pe"),
+                        "trome": ("Trome", "https://trome.com"),
+                        "ojo": ("Ojo", "https://ojo.pe"),
+                        "larazon": ("La Razon", "https://larazon.pe")}
         nombre, url_base = source_names.get(slug, (slug, f"https://{slug}.pe"))
         result = await self.session.execute(
             text("""

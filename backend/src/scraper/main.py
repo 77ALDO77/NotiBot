@@ -8,6 +8,7 @@ import argparse
 import concurrent.futures
 import hashlib
 import json
+import os
 import re
 import time
 import unicodedata
@@ -26,6 +27,7 @@ from src.scraper.classifier import (
     DISTRICT_UBIGEO, normalize_text, prepare_keywords, build_district_patterns
 )
 from src.scraper.category_inference import infer_categoria
+from src.core.database import engine
 
 
 class LimaCallaoNewsScraper:
@@ -558,6 +560,7 @@ def main():
     if args.date:
         args.start = args.date
         args.end = args.date
+        args.daily = True
 
     print("=" * 60)
     print("La República News Scraper — Lima Metropolitana & Callao")
@@ -652,6 +655,260 @@ def _scrape_elcomercio_day(session: requests.Session, date_str: str, max_workers
     return results
 
 
+def _scrape_peru21_day(session: requests.Session, date_str: str, max_workers: int = 3,
+                       classifier: LimaCallaoNewsScraper | None = None) -> list[tuple[NoticiaRecord, dict]]:
+    import concurrent.futures
+    from src.scraper.sources.peru21 import Peru21Scraper
+
+    p21 = Peru21Scraper(session)
+    target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+    article_infos: list[dict] = []
+    print(f"  Scanning Peru21 sections...")
+    for section_url in p21.get_section_urls():
+        listing = p21.parse_section_listing(section_url)
+        for art in listing:
+            fp = art.get("fecha_publicacion")
+            if fp and isinstance(fp, datetime) and fp.date() == target_date:
+                article_infos.append(art)
+
+    if not article_infos:
+        return []
+
+    print(f"  Found {len(article_infos)} Peru21 articles for {target_date}, extracting content...")
+
+    results: list[tuple[NoticiaRecord, dict]] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {}
+        for info in article_infos:
+            futures[executor.submit(p21.extract_article, info["url"])] = info
+
+        for future in concurrent.futures.as_completed(futures):
+            info = futures[future]
+            try:
+                data = future.result()
+                if not data or not data.get("titulo") or not data.get("content"):
+                    print(f"  ✗ [P21] No content: {info['titulo'][:60]}")
+                    continue
+
+                scope_geo = "desconocido"
+                provincia = None
+                distrito = None
+                ubigeo = None
+                if classifier:
+                    scope_geo, provincia, distrito, ubigeo = classifier.classify_geo(
+                        data["titulo"], data.get("content", "")
+                    )
+
+                record = NoticiaRecord(
+                    id_fuente=Peru21Scraper.SOURCE_ID,
+                    slug_fuente=Peru21Scraper.SLUG_FUENTE,
+                    url_original=data["url"],
+                    url_canonica=data.get("url_canonica"),
+                    url_imagen=data.get("url_imagen") or info.get("url_imagen"),
+                    titulo=data["titulo"],
+                    subtitulo=data.get("subtitulo") or info.get("subtitulo"),
+                    autor=data.get("autor") or info.get("autor"),
+                    seccion_fuente=data.get("seccion_fuente") or info.get("seccion_fuente"),
+                    categoria_principal=data.get("categoria_principal") or info.get("categoria_principal") or infer_categoria(info.get("seccion_fuente")),
+                    scope_geografico=scope_geo,
+                    provincia=provincia,
+                    distrito=distrito,
+                    ubigeo=ubigeo,
+                    fecha_publicacion=data.get("fecha_publicacion") or info.get("fecha_publicacion"),
+                    fecha_actualizacion=data.get("fecha_actualizacion"),
+                    idioma="es",
+                    es_duplicado=False,
+                )
+                contenido_data = {
+                    "titulo_extraido": data.get("titulo"),
+                    "bajada_extraida": data.get("subtitulo") or info.get("subtitulo"),
+                    "contenido_crudo": data.get("contenido_crudo"),
+                    "contenido_limpio": data["content"],
+                    "contenido_html": data.get("contenido_html"),
+                    "raw_jsonld": data.get("raw_jsonld"),
+                    "raw_metadata": data.get("raw_metadata"),
+                    "calidad_extraccion": "valida" if data["content"] else "sin_validar",
+                }
+                results.append((record, contenido_data))
+                print(f"  ✓ [P21] {record.titulo[:60]}")
+            except Exception as e:
+                print(f"  ✗ [P21 Error]: {e}")
+
+    return results
+
+
+def _scrape_correo_day(session: requests.Session, date_str: str, max_workers: int = 3,
+                       classifier: LimaCallaoNewsScraper | None = None) -> list[tuple[NoticiaRecord, dict]]:
+    from src.scraper.sources.correo import CorreoScraper
+    return _scrape_rss_source(CorreoScraper, session, date_str, classifier, "COR")
+
+
+def _scrape_gestion_day(session: requests.Session, date_str: str, max_workers: int = 3,
+                        classifier: LimaCallaoNewsScraper | None = None) -> list[tuple[NoticiaRecord, dict]]:
+    from src.scraper.sources.gestion import GestionScraper
+    return _scrape_rss_source(GestionScraper, session, date_str, classifier, "GES")
+
+
+def _scrape_trome_day(session: requests.Session, date_str: str, max_workers: int = 3,
+                      classifier: LimaCallaoNewsScraper | None = None) -> list[tuple[NoticiaRecord, dict]]:
+    from src.scraper.sources.trome import TromeScraper
+    return _scrape_rss_source(TromeScraper, session, date_str, classifier, "TRO")
+
+
+def _scrape_ojo_day(session: requests.Session, date_str: str, max_workers: int = 3,
+                    classifier: LimaCallaoNewsScraper | None = None) -> list[tuple[NoticiaRecord, dict]]:
+    from src.scraper.sources.ojo import OjoScraper
+    return _scrape_rss_source(OjoScraper, session, date_str, classifier, "OJO")
+
+
+def _scrape_rss_source(ScraperClass, session, date_str, classifier, tag):
+    c = ScraperClass(session)
+    target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+    article_infos: list[dict] = []
+    for feed_url in c.get_feed_urls():
+        articles = c.parse_feed(feed_url)
+        for art in articles:
+            fp = art.get("fecha_publicacion")
+            if fp and isinstance(fp, datetime) and fp.date() == target_date:
+                article_infos.append(art)
+
+    if not article_infos:
+        return []
+
+    results: list[tuple[NoticiaRecord, dict]] = []
+    for art in article_infos:
+        try:
+            scope_geo = "desconocido"
+            provincia = None
+            distrito = None
+            ubigeo = None
+            if classifier:
+                scope_geo, provincia, distrito, ubigeo = classifier.classify_geo(
+                    art["titulo"], art.get("content", "")
+                )
+
+            record = NoticiaRecord(
+                id_fuente=ScraperClass.SOURCE_ID,
+                slug_fuente=ScraperClass.SLUG_FUENTE,
+                url_original=art["url"],
+                url_canonica=art.get("url_canonica"),
+                url_imagen=art.get("url_imagen"),
+                titulo=art["titulo"],
+                subtitulo=art.get("subtitulo"),
+                autor=art.get("autor"),
+                seccion_fuente=art.get("seccion_fuente"),
+                categoria_principal=art.get("categoria_principal") or infer_categoria(art.get("seccion_fuente")),
+                scope_geografico=scope_geo,
+                provincia=provincia,
+                distrito=distrito,
+                ubigeo=ubigeo,
+                fecha_publicacion=art.get("fecha_publicacion"),
+                fecha_actualizacion=None,
+                idioma="es",
+                es_duplicado=False,
+            )
+            contenido_data = {
+                "titulo_extraido": art.get("titulo"),
+                "bajada_extraida": art.get("subtitulo"),
+                "contenido_crudo": art.get("contenido_crudo"),
+                "contenido_limpio": art["content"],
+                "contenido_html": art.get("contenido_html"),
+                "raw_jsonld": None,
+                "raw_metadata": None,
+                "calidad_extraccion": "valida" if art["content"] else "sin_validar",
+            }
+            results.append((record, contenido_data))
+            print(f"  ✓ [{tag}] {record.titulo[:60]}")
+        except Exception as e:
+            print(f"  ✗ [{tag} Error]: {e}")
+
+    return results
+
+
+def _scrape_larazon_day(session: requests.Session, date_str: str, max_workers: int = 3,
+                        classifier: LimaCallaoNewsScraper | None = None) -> list[tuple[NoticiaRecord, dict]]:
+    import concurrent.futures
+    from datetime import timedelta
+    from src.scraper.sources.larazon import LarazonScraper
+
+    lr = LarazonScraper(session)
+    sitemaps = lr.get_sitemap_urls()
+
+    article_infos: list[dict] = []
+    for sm_url in sitemaps:
+        article_infos.extend(lr.parse_sitemap(sm_url))
+
+    target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    cutoff = target_date - timedelta(days=30)
+
+    results: list[tuple[NoticiaRecord, dict]] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {}
+        for info in article_infos:
+            lastmod = info.get("lastmod")
+            if lastmod is None or lastmod.date() >= cutoff:
+                futures[executor.submit(lr.extract_article, info["url"])] = info
+
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                data = future.result()
+                if not data or not data.get("titulo") or not data.get("content"):
+                    continue
+                fecha_pub = data.get("fecha_publicacion")
+                if not fecha_pub or not isinstance(fecha_pub, datetime):
+                    continue
+                if fecha_pub.date() != target_date:
+                    continue
+
+                scope_geo = "desconocido"
+                provincia = None
+                distrito = None
+                ubigeo = None
+                if classifier:
+                    scope_geo, provincia, distrito, ubigeo = classifier.classify_geo(
+                        data["titulo"], data.get("content", "")
+                    )
+
+                record = NoticiaRecord(
+                    id_fuente=LarazonScraper.SOURCE_ID,
+                    slug_fuente=LarazonScraper.SLUG_FUENTE,
+                    url_original=data["url"],
+                    url_canonica=data.get("url_canonica"),
+                    url_imagen=data.get("url_imagen"),
+                    titulo=data["titulo"],
+                    subtitulo=data.get("subtitulo"),
+                    autor=data.get("autor"),
+                    seccion_fuente=data.get("seccion_fuente"),
+                    categoria_principal=data.get("categoria_principal") or infer_categoria(data.get("seccion_fuente")),
+                    scope_geografico=scope_geo,
+                    provincia=provincia,
+                    distrito=distrito,
+                    ubigeo=ubigeo,
+                    fecha_publicacion=data.get("fecha_publicacion"),
+                    fecha_actualizacion=data.get("fecha_actualizacion"),
+                    idioma="es",
+                    es_duplicado=False,
+                )
+                contenido_data = {
+                    "titulo_extraido": data.get("titulo"),
+                    "bajada_extraida": data.get("subtitulo"),
+                    "contenido_crudo": data.get("contenido_crudo"),
+                    "contenido_limpio": data["content"],
+                    "contenido_html": data.get("contenido_html"),
+                    "raw_jsonld": data.get("raw_jsonld"),
+                    "raw_metadata": data.get("raw_metadata"),
+                    "calidad_extraccion": "valida" if data["content"] else "sin_validar",
+                }
+                results.append((record, contenido_data))
+                print(f"  ✓ [LR] {record.titulo[:60]}")
+            except Exception as e:
+                print(f"  ✗ [LR Error]: {e}")
+
+    return results
+
+
 def _run_daily(args):
     from datetime import date, timedelta
 
@@ -695,6 +952,72 @@ def _run_daily(args):
             print(f"  DB ElComercio: {ec_written} insertadas, {ec_errors} errores")
         else:
             print(f"  ElComercio: {len(ec_results)} encontrados")
+
+        p21_results = _scrape_peru21_day(scraper.session, date_str, args.workers, scraper)
+        all_results.extend(p21_results)
+        if args.db and p21_results:
+            p21_written, p21_errors = _write_to_database_daily(
+                p21_results, scraper, date_str,
+                urls_totales=len(p21_results), source_slug="peru21"
+            )
+            print(f"  DB Peru21: {p21_written} insertadas, {p21_errors} errores")
+        else:
+            print(f"  Peru21: {len(p21_results)} encontrados")
+
+        cor_results = _scrape_correo_day(scraper.session, date_str, args.workers, scraper)
+        all_results.extend(cor_results)
+        if args.db and cor_results:
+            cor_written, cor_errors = _write_to_database_daily(
+                cor_results, scraper, date_str,
+                urls_totales=len(cor_results), source_slug="correo"
+            )
+            print(f"  DB Correo: {cor_written} insertadas, {cor_errors} errores")
+        else:
+            print(f"  Correo: {len(cor_results)} encontrados")
+
+        ges_results = _scrape_gestion_day(scraper.session, date_str, args.workers, scraper)
+        all_results.extend(ges_results)
+        if args.db and ges_results:
+            ges_written, ges_errors = _write_to_database_daily(
+                ges_results, scraper, date_str,
+                urls_totales=len(ges_results), source_slug="gestion"
+            )
+            print(f"  DB Gestion: {ges_written} insertadas, {ges_errors} errores")
+        else:
+            print(f"  Gestion: {len(ges_results)} encontrados")
+
+        tro_results = _scrape_trome_day(scraper.session, date_str, args.workers, scraper)
+        all_results.extend(tro_results)
+        if args.db and tro_results:
+            tro_written, tro_errors = _write_to_database_daily(
+                tro_results, scraper, date_str,
+                urls_totales=len(tro_results), source_slug="trome"
+            )
+            print(f"  DB Trome: {tro_written} insertadas, {tro_errors} errores")
+        else:
+            print(f"  Trome: {len(tro_results)} encontrados")
+
+        ojo_results = _scrape_ojo_day(scraper.session, date_str, args.workers, scraper)
+        all_results.extend(ojo_results)
+        if args.db and ojo_results:
+            ojo_written, ojo_errors = _write_to_database_daily(
+                ojo_results, scraper, date_str,
+                urls_totales=len(ojo_results), source_slug="ojo"
+            )
+            print(f"  DB Ojo: {ojo_written} insertadas, {ojo_errors} errores")
+        else:
+            print(f"  Ojo: {len(ojo_results)} encontrados")
+
+        lr_results = _scrape_larazon_day(scraper.session, date_str, args.workers, scraper)
+        all_results.extend(lr_results)
+        if args.db and lr_results:
+            lr_written, lr_errors = _write_to_database_daily(
+                lr_results, scraper, date_str,
+                urls_totales=len(lr_results), source_slug="larazon"
+            )
+            print(f"  DB Larazon: {lr_written} insertadas, {lr_errors} errores")
+        else:
+            print(f"  Larazon: {len(lr_results)} encontrados")
 
         current += timedelta(days=1)
 
@@ -762,6 +1085,7 @@ def _save_json(results, args, scraper):
     }
 
     filename = args.output or f"data/lima_callao_news_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
     with open(filename, "w", encoding="utf-8") as fh:
         json.dump(output, fh, ensure_ascii=False, indent=2)
     print(f"JSON saved to: {filename}")
@@ -836,6 +1160,7 @@ def _write_to_database(results: list[tuple[NoticiaRecord, dict]], sitemaps: list
         )
         await db_writer.commit()
         await db_writer.close()
+        await engine.dispose()
 
     asyncio.run(_do_write())
     return written, errors
@@ -892,6 +1217,7 @@ def _write_to_database_daily(results: list[tuple[NoticiaRecord, dict]], scraper,
         )
         await db_writer.commit()
         await db_writer.close()
+        await engine.dispose()
 
     asyncio.run(_do_write())
     return written, errors

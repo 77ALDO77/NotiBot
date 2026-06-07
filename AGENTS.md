@@ -13,22 +13,23 @@ Plataforma de noticias inteligentes para Lima y Callao. Backend + frontend + Pos
 | DB migrations | `backend/` | `uv run alembic upgrade head` |
 | Instalar deps Python | `backend/` | `uv sync` |
 
-- `.env` en `backend/` es obligatorio para desarrollo local. Contiene `DATABASE_URL` y `SECRET_KEY`.
+- `.env` en `backend/` es obligatorio para desarrollo local (pydantic-settings lee del CWD). Contiene `DATABASE_URL` y `SECRET_KEY`. El `.env.example` de referencia está en la raíz del repo.
 - `opencode.json` y `.env` están en `.gitignore`.
-- Package manager frontend: `npm` (NO yarn/pnpm).
+- Package manager frontend: `npm` (NO yarn/pnpm). Forzado en `package.json` (`packageManager: "npm@11.12.1"`) y `angular.json` (`packageManager: "npm"`).
 - No hay CI/CD ni GitHub Actions.
+- No hay comandos de lint ni typecheck configurados (ni frontend ni backend).
 
 ## Arquitectura
 
 | Módulo | Stack |
 |--------|-------|
-| `backend/` | FastAPI, SQLAlchemy async, asyncpg, Alembic, **uv**, Python 3.13 (pyproject dice ≥3.14 pero no existe; uv resuelve con lo disponible) |
+| `backend/` | FastAPI, SQLAlchemy async, asyncpg, Alembic, **uv**, Python 3.14 (Docker usa `python:3.14-slim-bookworm`; local: uv resuelve con la versión disponible) |
 | `frontend/` | Angular 21 standalone, SCSS, vitest, npm |
 | `Scraper/` (raíz) | **Deprecado**. Ignorar. El scraper real está en `backend/src/scraper/`. |
 
 ## Documentos stale
 
-`README.md` (menciona Next.js/bun), `docs/architecture.md` (describe `ai/`, `k8s/` inexistentes). Ignorarlos. `docs/NotiBot.md` es design spec, no implementación actual.
+`README.md` y `docs/architecture.md` — ambos tratan `Scraper/` (raíz) como el módulo activo de scraping y describen un backend mínimo con solo 2 endpoints. Ignorarlos. `docs/NotiBot.md` es design spec, no implementación actual.
 
 ## Database
 

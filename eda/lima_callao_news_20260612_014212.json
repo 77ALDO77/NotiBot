@@ -1,0 +1,131 @@
+{
+  "source": "postgresql:notibot",
+  "scraped_at": "2026-06-12 06:42:12",
+  "total_articles": 10,
+  "date_range": {
+    "start": null,
+    "end": null
+  },
+  "articles": [
+    {
+      "id": 408,
+      "titulo": "Virus sincicial respiratorio en Perú suma 1.891 casos y sigue siendo la principal causa de muerte en menores de 6 meses",
+      "subtitulo": "La ginecóloga Claudia Namizato destacó que el VSR causa infecciones respiratorias bajas, neumonía y bronquiolitis en lactantes. La vulnerabilidad aumenta en bebés menores de seis meses, con alto riesgo de hospitalización y UCI.",
+      "autor": "Valeria TossoEscucharResumenCompartir",
+      "distrito": "Callao",
+      "provincia": "Callao",
+      "scope_geografico": "callao",
+      "seccion_normalizada": "sociedad",
+      "es_duplicado": false,
+      "_content_preview": ""
+    },
+    {
+      "id": 104,
+      "titulo": "Empresario peruano condecorado por el Congreso habría estafado con S/3 millones a familias limeñas",
+      "subtitulo": "Ricardo Washington López Aguilar hacía creer a sus víctimas que tendrían una inversión segura y libre de riesgos. Ahora las víctimas solicitan su inclusión en la lista de alertas rojas de la Interpol.",
+      "autor": "Isabel NombertoEscucharResumenCompartir",
+      "distrito": NaN,
+      "provincia": "Lima",
+      "scope_geografico": "lima_metropolitana",
+      "seccion_normalizada": "sociedad",
+      "es_duplicado": false,
+      "_content_preview": ""
+    },
+    {
+      "id": 19,
+      "titulo": "Sorteo de La Tinka del miércoles 20 de mayo: números ganadores, premios del Pozo Millonario, boliyapa, S/50.000 y más",
+      "subtitulo": "El sorteo de La Tinka tendrá el clásico sorteo multimillonario y juegos adicionales como el ‘Sí o Sí’ y ‘Boliyapa’, aumentando las posibilidades de ganar.",
+      "autor": "Erick TorresCompartir",
+      "distrito": NaN,
+      "provincia": "Lima",
+      "scope_geografico": "lima_metropolitana",
+      "seccion_normalizada": "sociedad",
+      "es_duplicado": false,
+      "_content_preview": ""
+    },
+    {
+      "id": 85,
+      "titulo": "El viaje póstumo de Carmen Caballero, por Leyla Aboudayeh",
+      "subtitulo": "La exposición “Carmen Caballero. Homenaje a un ser de arte” reúne en Casa Fugaz a 117 artistas de distintas partes del mundo en un gesto colectivo donde el arte, la memoria y el duelo se convierten en una forma de resistencia frente al olvido.&nbsp;",
+      "autor": "Columnista invitado",
+      "distrito": "Callao",
+      "provincia": "Callao",
+      "scope_geografico": "callao",
+      "seccion_normalizada": "opinion",
+      "es_duplicado": false,
+      "_content_preview": ""
+    },
+    {
+      "id": 297,
+      "titulo": "Soda Stereo en Lima 2026: setlist completo y horarios de sus tres conciertos en el Arena 1 de San Miguel",
+      "subtitulo": "La histórica banda argentina Soda Stereo revivirá la presencia de Gustavo Cerati gracias a la tecnología audiovisual. Conoce todos los detalles para no perderte las tres presentaciones, que arrancan este viernes 22 de mayo.",
+      "autor": "Jhon LunaEscucharResumenCompartir",
+      "distrito": "San Miguel",
+      "provincia": "Lima",
+      "scope_geografico": "lima_metropolitana",
+      "seccion_normalizada": "entretenimiento",
+      "es_duplicado": false,
+      "_content_preview": ""
+    },
+    {
+      "id": 28,
+      "titulo": "Combi que provocó atropello no asume gastos médicos y clínica cobraría a víctimas más de S/2.000",
+      "subtitulo": "La unidad, que registra más de S/50.000 en multas, se despistó y chocó contra otro vehículo, lo que provocó el impacto contra dos madres de familia y sus hijas en San Juan de Lurigancho.",
+      "autor": "Renzo AnselmoEscucharResumenCompartir",
+      "distrito": "Lurigancho",
+      "provincia": "Lima",
+      "scope_geografico": "lima_metropolitana",
+      "seccion_normalizada": "sociedad",
+      "es_duplicado": false,
+      "_content_preview": ""
+    },
+    {
+      "id": 29,
+      "titulo": "Mujer se arrastró por escaleras en estación del Metro de Lima ante falta de ascensor",
+      "subtitulo": "La denunciante exigió mejoras urgentes en la accesibilidad a las estaciones de la Línea 1, señalando que el ascensor lleva días inoperativo.",
+      "autor": "Luis AguilarEscucharResumenCompartir",
+      "distrito": NaN,
+      "provincia": "Lima",
+      "scope_geografico": "lima_metropolitana",
+      "seccion_normalizada": "sociedad",
+      "es_duplicado": false,
+      "_content_preview": ""
+    },
+    {
+      "id": 80,
+      "titulo": "Querido finalista de 'La voz Perú' se pelea en concierto: golpeó a trabajador y lo deja con terrible fractura",
+      "subtitulo": "Un exfinalista de ‘La voz Perú’ quedó envuelto en una fuerte polémica tras ser acusado de agredir brutalmente a un trabajador durante un festival de heavy metal realizado en el Centro de Lima.",
+      "autor": "Aldair IllanesEscucharResumenCompartir",
+      "distrito": NaN,
+      "provincia": "Lima",
+      "scope_geografico": "lima_metropolitana",
+      "seccion_normalizada": "espectaculos",
+      "es_duplicado": false,
+      "_content_preview": ""
+    },
+    {
+      "id": 81,
+      "titulo": "El Vibra Perú acusa a Corazón Serrano de querer retirar a otros artistas peruanos del festival",
+      "subtitulo": "Los organizadores del Vibra Perú consideran que la decisión de Corazón Serrano de retirarse del evento fue unilateral y expresan su malestar por anunciar otro concierto en la misma fecha y en un local cercano.",
+      "autor": "Sandy CarriónEscucharResumenCompartir",
+      "distrito": NaN,
+      "provincia": "Lima",
+      "scope_geografico": "lima_metropolitana",
+      "seccion_normalizada": "espectaculos",
+      "es_duplicado": false,
+      "_content_preview": ""
+    },
+    {
+      "id": 82,
+      "titulo": "Ana Paula Consorte sorprende al compartir foto junto a Paolo Guerrero y aviva rumores de reconciliación",
+      "subtitulo": "La influencer brasileña reapareció junto al 'depredador' en redes sociales tras los rumores que surgieron alrededor de su relación sentimental.",
+      "autor": "Ivett MezaEscucharResumenCompartir",
+      "distrito": "Miraflores",
+      "provincia": "Lima",
+      "scope_geografico": "lima_metropolitana",
+      "seccion_normalizada": "espectaculos",
+      "es_duplicado": false,
+      "_content_preview": ""
+    }
+  ]
+}

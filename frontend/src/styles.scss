@@ -1,0 +1,86 @@
+@use 'styles/tokens' as *;
+
+// ── Reset & Base ──────────────────────────────────────────
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: $font-body;
+  font-size: $fs-body-md;
+  line-height: $lh-body-md;
+  color: $color-text-primary;
+  background-color: $color-background;
+}
+
+// ── Typography Utilities ──────────────────────────────────
+h1, .display-lg {
+  font-family: $font-headline;
+  font-size: $fs-display-lg;
+  line-height: $lh-display-lg;
+  font-weight: $fw-display-lg;
+  color: $color-brand;
+}
+
+h2, .headline-md {
+  font-family: $font-headline;
+  font-size: $fs-headline-md;
+  line-height: $lh-headline-md;
+  font-weight: $fw-headline-md;
+}
+
+h3, .headline-sm {
+  font-family: $font-headline;
+  font-size: $fs-headline-sm;
+  line-height: $lh-headline-sm;
+  font-weight: $fw-headline-sm;
+}
+
+.body-lg {
+  font-family: $font-body;
+  font-size: $fs-body-lg;
+  line-height: $lh-body-lg;
+}
+
+.label-md {
+  font-family: $font-ui;
+  font-size: $fs-label-md;
+  line-height: $lh-label-md;
+  font-weight: $fw-label-md;
+  letter-spacing: $ls-label-md;
+}
+
+.label-sm {
+  font-family: $font-ui;
+  font-size: $fs-label-sm;
+  line-height: $lh-label-sm;
+  font-weight: $fw-label-sm;
+}
+
+// ── Links ─────────────────────────────────────────────────
+a {
+  color: $color-brand;
+  text-decoration: none;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $color-on-primary-fixed-variant;
+  }
+}
+
+// ── Focus ─────────────────────────────────────────────────
+:focus-visible {
+  outline: $border-focus;
+  outline-offset: 2px;
+  border-radius: $radius-sm;
+}

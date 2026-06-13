@@ -1,0 +1,23 @@
+[project]
+name = "notibot-backend"
+version = "0.1.0"
+description = "NotiBot API backend — FastAPI + PostgreSQL"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "asyncpg>=0.30.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "alembic>=1.14.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-jose[cryptography]>=3.5.0",
+    "bcrypt>=5.0.0",
+    "sentence-transformers>=3.0.0",
+    "torch>=2.0.0",
+    "numpy>=1.24",
+    "bs4>=0.0.2",
+    "requests>=2.33.1",
+    "umap-learn>=0.5.12",
+]

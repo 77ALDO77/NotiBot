@@ -1,0 +1,26 @@
+# OpenCode config (contains API keys)
+opencode.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+
+# Environment
+.env
+.env.local
+
+# Docker
+pgdata/
+
+# Angular
+frontend/dist/
+
+# Scraper output
+backend/data/
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,47 @@
+<section class="chat">
+  <header class="chat__header">
+    <div class="chat__header-left">
+      <span class="chat__ai-indicator"></span>
+      <div>
+        <h1 class="headline-sm chat__title">NotiBot AI</h1>
+        <span class="label-sm chat__status">Asistente de noticias</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="chat__messages">
+    @for (msg of messages(); track msg.id) {
+      <div class="chat__message" [class.chat__message--user]="msg.role === 'user'" [class.chat__message--assistant]="msg.role === 'assistant'">
+        <div class="chat__bubble">
+          <p class="body-md">{{ msg.content }}</p>
+          <span class="label-sm chat__time">{{ msg.time }}</span>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="chat__input-area">
+    <div class="chat__input-wrapper">
+      <textarea
+        class="body-md chat__input"
+        [ngModel]="prompt()"
+        (ngModelChange)="prompt.set($event)"
+        (keydown)="handleKeydown($event)"
+        placeholder="Pregunta sobre noticias de Lima y Callao..."
+        rows="1"
+        aria-label="Escribe tu mensaje"
+      ></textarea>
+      <button
+        class="chat__send-btn"
+        (click)="sendMessage()"
+        [disabled]="!prompt().trim()"
+        aria-label="Enviar mensaje"
+      >
+        →
+      </button>
+    </div>
+    <p class="label-sm chat__disclaimer">
+      NotiBot AI puede cometer errores. Verifica la información importante.
+    </p>
+  </div>
+</section>

@@ -1,0 +1,106 @@
+@use '../styles/tokens' as *;
+
+// ── Topbar ────────────────────────────────────────────────
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: $color-surface-container-lowest;
+  border-bottom: $border-default;
+  backdrop-filter: blur(12px);
+
+  &__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: $sp-container-max;
+    margin: 0 auto;
+    padding: $sp-stack-sm $sp-gutter;
+    height: 56px;
+  }
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: $sp-stack-sm;
+    text-decoration: none;
+    color: $color-brand;
+  }
+
+  &__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: $radius-md;
+    background: $color-brand;
+    color: $color-on-primary;
+    font-family: $font-headline;
+    font-weight: $fw-display-lg;
+    font-size: 14px;
+    letter-spacing: -0.5px;
+  }
+
+  &__title {
+    font-family: $font-headline;
+    font-size: $fs-headline-sm;
+    font-weight: $fw-headline-md;
+  }
+
+  &__nav {
+    display: flex;
+    align-items: center;
+    gap: $sp-stack-sm;
+  }
+
+  &__link {
+    padding: 6px 14px;
+    border-radius: $radius-full;
+    font-family: $font-ui;
+    font-size: $fs-label-md;
+    font-weight: $fw-label-md;
+    color: $color-text-secondary;
+    text-decoration: none;
+    transition: background $transition-fast, color $transition-fast;
+
+    &:hover {
+      background: $color-surface-container;
+      color: $color-text-primary;
+    }
+
+    &--active {
+      background: $color-primary-fixed;
+      color: $color-on-primary-fixed;
+    }
+
+    &--ai {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    &--auth {
+      background: $color-brand;
+      color: $color-on-primary;
+
+      &:hover {
+        background: $color-on-primary-fixed-variant;
+        color: $color-on-primary;
+      }
+    }
+  }
+
+  &__ai-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: $radius-full;
+    background: $color-ai;
+    box-shadow: $shadow-ai-glow;
+  }
+}
+
+// ── Main Layout ───────────────────────────────────────────
+.main {
+  min-height: calc(100vh - 56px);
+}

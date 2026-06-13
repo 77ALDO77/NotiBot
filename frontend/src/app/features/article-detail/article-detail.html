@@ -1,0 +1,70 @@
+<div class="article-page">
+  <nav class="article-page__back">
+    <a routerLink="/" class="article-page__back-link">← Portada</a>
+  </nav>
+
+  @if (loading()) {
+    <div class="article-page__loading">
+      <div class="skeleton-box skeleton-box--hero"></div>
+      <div class="skeleton-line skeleton-line--short"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-line--medium"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-line--medium"></div>
+    </div>
+  } @else if (error()) {
+    <div class="article-page__error">
+      <p>{{ error() }}</p>
+      <a routerLink="/">Volver a la portada</a>
+    </div>
+  } @else if (article(); as a) {
+    <article class="article">
+      @if (a.url_imagen) {
+        <div class="article__hero">
+          <img [src]="a.url_imagen" [alt]="a.titulo" />
+        </div>
+      }
+
+      <header class="article__header">
+        <div class="article__meta">
+          <span class="article__category">{{ a.categoria_principal || 'General' }}</span>
+          <span class="article__dot">·</span>
+          <span class="article__source">{{ sourceLabel() }}</span>
+          @if (a.distrito) {
+            <span class="article__dot">·</span>
+            <span class="article__location">📍 {{ a.distrito }}</span>
+          }
+        </div>
+        <h1 class="article__headline">{{ a.titulo }}</h1>
+        @if (a.subtitulo) {
+          <p class="article__subtitle">{{ a.subtitulo }}</p>
+        }
+        <div class="article__byline">
+          @if (a.autor) {
+            <span>Por <strong>{{ a.autor }}</strong></span>
+          }
+          <time class="article__date">{{ displayDate() }}</time>
+        </div>
+      </header>
+
+      <div class="article__body">
+        @for (p of paragraphs(); track $index) {
+          <p>{{ p }}</p>
+        }
+      </div>
+
+      <div class="article__reactions-bar">
+        <span class="article__reaction">❤️ {{ reactions.likes }}</span>
+        <span class="article__reaction">💬 {{ reactions.interested }}</span>
+        <span class="article__reaction">😮 {{ reactions.surprise }}</span>
+        <span class="article__reaction">😴 {{ reactions.sleep }}</span>
+      </div>
+
+      <div class="article__source-link">
+        <a [href]="a.url_original" target="_blank" rel="noopener">
+          Ver noticia original en {{ sourceLabel() }} →
+        </a>
+      </div>
+    </article>
+  }
+</div>

@@ -1,0 +1,178 @@
+@use 'sass:color';
+@use '../../../styles/tokens' as *;
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  max-width: 720px;
+  margin: 0 auto;
+  height: calc(100vh - 56px);
+  background: $color-background;
+
+  // ── Header ──────────────────────────────────────────────
+  &__header {
+    padding: $sp-stack-md $sp-gutter;
+    border-bottom: 1px solid $color-divider;
+    background: rgba($color-surface-container-lowest, 0.85);
+    backdrop-filter: blur(20px);
+    position: sticky;
+    top: 56px;
+    z-index: 10;
+  }
+
+  &__header-left {
+    display: flex;
+    align-items: center;
+    gap: $sp-stack-sm;
+  }
+
+  &__ai-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: $radius-full;
+    background: $color-ai;
+    box-shadow: $shadow-ai-glow;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  &__title {
+    color: $color-brand;
+  }
+
+  &__status {
+    color: $color-text-secondary;
+  }
+
+  // ── Messages ────────────────────────────────────────────
+  &__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: $sp-stack-md $sp-gutter;
+    display: flex;
+    flex-direction: column;
+    gap: $sp-stack-md;
+  }
+
+  &__message {
+    display: flex;
+    max-width: 85%;
+
+    &--user {
+      align-self: flex-end;
+
+      .chat__bubble {
+        background: $color-brand;
+        color: $color-on-primary;
+        border-bottom-right-radius: $radius-sm;
+      }
+
+      .chat__time {
+        color: rgba($color-on-primary, 0.7);
+      }
+    }
+
+    &--assistant {
+      align-self: flex-start;
+
+      .chat__bubble {
+        background: $color-surface-container;
+        border: 1px solid $color-ai;
+        border-bottom-left-radius: $radius-sm;
+        box-shadow: $shadow-ai-glow;
+      }
+
+      .chat__time {
+        color: $color-text-secondary;
+      }
+    }
+  }
+
+  &__bubble {
+    padding: $sp-stack-sm $sp-stack-md;
+    border-radius: $radius-lg;
+    line-height: $lh-body-md;
+  }
+
+  &__time {
+    display: block;
+    margin-top: 4px;
+    text-align: right;
+  }
+
+  // ── Input Area ──────────────────────────────────────────
+  &__input-area {
+    padding: $sp-stack-md $sp-gutter;
+    border-top: 1px solid $color-divider;
+    background: rgba($color-surface-container-lowest, 0.85);
+    backdrop-filter: blur(20px);
+  }
+
+  &__input-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: $sp-stack-sm;
+    padding: $sp-stack-sm $sp-stack-sm $sp-stack-sm $sp-stack-md;
+    border: $border-default;
+    border-radius: $radius-full;
+    background: $color-card-bg;
+    transition: border-color $transition-fast, box-shadow $transition-fast;
+
+    &:focus-within {
+      border-color: $color-ai;
+      box-shadow: 0 0 0 3px rgba($color-ai, 0.15);
+    }
+  }
+
+  &__input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    resize: none;
+    max-height: 120px;
+    padding: 6px 0;
+    font-family: $font-body;
+    color: $color-text-primary;
+
+    &::placeholder {
+      color: $color-text-secondary;
+    }
+  }
+
+  &__send-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border: none;
+    border-radius: $radius-full;
+    background: $color-ai;
+    color: #fff;
+    font-size: 20px;
+    font-weight: $fw-label-md;
+    cursor: pointer;
+    transition: background $transition-fast, opacity $transition-fast;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover:not(:disabled) {
+      background: color.adjust($color-ai, $lightness: -8%);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+
+  &__disclaimer {
+    text-align: center;
+    margin-top: $sp-stack-sm;
+    color: $color-text-secondary;
+  }
+}

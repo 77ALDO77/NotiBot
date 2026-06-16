@@ -24,3 +24,10 @@ backend/data/
 .idea/
 *.swp
 *.swo
+
+.docker-pg-socket/
+
+# Database dumps (large files)
+data/*.sql
+data/*.sql.gz
+docs/database/*.sql.gz

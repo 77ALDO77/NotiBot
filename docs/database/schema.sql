@@ -64,8 +64,10 @@ CREATE TABLE "public"."usuarios" (
     "preferencias" jsonb,
     "fecha_registro" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "ultimo_acceso" timestamptz,
+    "rol" text NOT NULL DEFAULT 'lector',
     PRIMARY KEY ("id"),
-    CHECK (estado IN ('activo','suspendido','eliminado'))
+    CHECK (estado IN ('activo','suspendido','eliminado')),
+    CHECK (rol IN ('admin', 'lector'))
 );
 CREATE INDEX "usuarios_idx_usuarios_estado" ON "public"."usuarios" ("estado");
 

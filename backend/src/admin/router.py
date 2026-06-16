@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from src.auth.dependencies import require_admin
+from src.admin.analytics_router import router as analytics_router
 from src.admin.fuentes_router import router as fuentes_router
 from src.admin.pipeline_router import router as pipeline_router
 from src.admin.scraping_router import router as scraping_router
@@ -15,3 +16,4 @@ router.include_router(scraping_router)
 router.include_router(stats_router)
 router.include_router(noticias_router)
 router.include_router(vectores_router)
+router.include_router(analytics_router)

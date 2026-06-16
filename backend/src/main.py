@@ -1,4 +1,7 @@
+import logging
 from contextlib import asynccontextmanager
+
+import nltk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,9 +12,21 @@ from src.auth.router import router as auth_router
 from src.admin.router import router as admin_router
 from src.rag.router import router as rag_router
 
+logger = logging.getLogger(__name__)
+
+
+def _init_nltk():
+    for resource in ("stopwords", "punkt_tab"):
+        try:
+            nltk.data.find(f"tokenizers/{resource}" if resource == "punkt_tab" else f"corpora/{resource}")
+        except LookupError:
+            logger.info("Descargando NLTK %s...", resource)
+            nltk.download(resource, quiet=True)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    _init_nltk()
     yield
     await engine.dispose()
 

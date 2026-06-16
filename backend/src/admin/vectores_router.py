@@ -16,7 +16,7 @@ router = APIRouter(tags=["admin-vectores"])
 
 
 @router.post("/vectores/generate")
-async def generate_embeddings(db: AsyncSession = Depends(get_db)):
+async def generate_embeddings(db: AsyncSession = Depends(get_db), force: bool = Query(False)):
     result = await db.execute(
         select(NoticiaChunk.id, NoticiaChunk.texto_chunk)
         .where(NoticiaChunk.embedding.is_(None))
@@ -24,25 +24,41 @@ async def generate_embeddings(db: AsyncSession = Depends(get_db)):
     )
     new_rows = result.all()
 
-    if not new_rows:
-        return {"status": "done", "generated": 0, "message": "Todos los chunks ya tienen embedding"}
+    if not new_rows and not force:
+        return {"status": "done", "generated": 0, "recalibrated": 0,
+                "message": "Todos los chunks ya tienen embedding. Usa ?force=true para recalibrar UMAP."}
 
     new_ids = [r.id for r in new_rows]
     new_texts = [(r.texto_chunk or "")[:2000] for r in new_rows]
-    new_embeddings = encode_texts(new_texts)
+    new_embeddings = encode_texts(new_texts) if new_texts else np.zeros((0, 384))
 
-    result = await db.execute(
-        select(NoticiaChunk.id, NoticiaChunk.embedding)
-        .where(NoticiaChunk.embedding.isnot(None))
-    )
-    old_rows = result.all()
+    if force:
+        result = await db.execute(
+            select(NoticiaChunk.id, NoticiaChunk.embedding)
+            .where(NoticiaChunk.embedding.isnot(None))
+        )
+        old_rows = result.all()
+    else:
+        result = await db.execute(
+            select(NoticiaChunk.id, NoticiaChunk.embedding)
+            .where(NoticiaChunk.embedding.isnot(None))
+        )
+        old_rows = result.all()
+
     all_ids = [r.id for r in old_rows] + new_ids
-
     old_emb_list = [
         np.array([float(x) for x in r.embedding.strip("[]").split(",")])
         for r in old_rows if r.embedding
     ]
-    all_embeddings = np.vstack(old_emb_list + [new_embeddings])
+
+    if force and len(old_emb_list) == 0:
+        return {"status": "done", "generated": 0, "recalibrated": 0,
+                "message": "No hay embeddings para recalibrar."}
+
+    if len(new_embeddings) > 0:
+        all_embeddings = np.vstack(old_emb_list + [new_embeddings]) if old_emb_list else new_embeddings
+    else:
+        all_embeddings = np.array(old_emb_list, dtype=np.float64)
 
     all_coords = reduce_to_3d(all_embeddings)
 
@@ -51,7 +67,7 @@ async def generate_embeddings(db: AsyncSession = Depends(get_db)):
         emb_arr = emb_arr.astype(np.float64) if isinstance(emb_arr, np.ndarray) else np.array(emb_arr, dtype=np.float64)
         emb_str = ",".join(f"{v:.8f}" for v in emb_arr[:384])
         is_new = i >= len(old_rows)
-        if is_new:
+        if is_new and len(new_rows) > 0:
             await db.execute(
                 text("UPDATE noticias_chunks SET embedding = :emb, x = :x, y = :y, z = :z WHERE id = :id"),
                 {"id": chunk_id, "emb": f"[{emb_str}]", "x": float(all_coords[i][0]), "y": float(all_coords[i][1]), "z": float(all_coords[i][2])},

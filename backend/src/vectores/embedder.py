@@ -41,19 +41,19 @@ def reduce_to_3d(embeddings: np.ndarray) -> np.ndarray:
     if _reducer is None:
         _reducer = UMAP(
             n_components=3,
-            n_neighbors=min(15, n_samples - 1),
-            min_dist=0.15,
+            n_neighbors=min(30, n_samples - 1),
+            min_dist=0.05,
             metric="cosine",
             random_state=42,
             low_memory=False,
         )
     else:
-        n_neighbors = min(15, n_samples - 1)
+        n_neighbors = min(30, n_samples - 1)
         if _reducer.n_neighbors != n_neighbors:
             _reducer = UMAP(
                 n_components=3,
                 n_neighbors=n_neighbors,
-                min_dist=0.15,
+                min_dist=0.05,
                 metric="cosine",
                 random_state=42,
                 low_memory=False,

@@ -2,6 +2,7 @@ import { Component, OnInit, signal, computed } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 interface AdminStats {
@@ -111,7 +112,7 @@ type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes';
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, RouterLink, RouterLinkActive],
   template: `
     <div class="admin">
       <header class="admin__header">
@@ -135,6 +136,12 @@ type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes';
             }
           </button>
         }
+        <a
+          class="admin__tab"
+          routerLink="/admin/analytics"
+          routerLinkActive="admin__tab--active"
+          [routerLinkActiveOptions]="{exact: false}"
+        >Analytics</a>
       </nav>
 
       @switch (activeTab()) {
@@ -345,8 +352,11 @@ type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes';
                   </select>
                 }
                 <span class="filters__total">{{ vectorView() === '3d' ? vectorTotal() + (vectorModo() === 'articulos' ? ' artículos' : ' chunks') : graphNodes().length + ' nodos' }}</span>
-                <button class="btn" (click)="generateVectors()" [disabled]="vectorLoading()">
+                <button class="btn btn-sm" (click)="generateVectors()" [disabled]="vectorLoading()">
                   {{ vectorLoading() ? 'Generando...' : 'Generar embeddings' }}
+                </button>
+                <button class="btn btn-sm" (click)="recalibrateUMAP()" [disabled]="vectorLoading()">
+                  {{ vectorLoading() ? 'Recalibrando...' : 'Recalibrar UMAP' }}
                 </button>
               </div>
               @if (vectorView() === '3d') {
@@ -1163,7 +1173,20 @@ export class AdminComponent implements OnInit {
     this.http.post(`${this.apiUrl}/vectores/generate`, {}).subscribe({
       next: (res: any) => {
         this.vectorLoading.set(false);
-        if ((res as any).generated > 0) this.loadVectores();
+        if ((res as any).generated > 0 || (res as any).recalibrated > 0) this.loadVectores();
+      },
+      error: () => this.vectorLoading.set(false),
+    });
+  }
+
+  recalibrateUMAP() {
+    this.vectorLoading.set(true);
+    this.http.post(`${this.apiUrl}/vectores/generate?force=true`, {}).subscribe({
+      next: (res: any) => {
+        this.vectorLoading.set(false);
+        if ((res as any).recalibrated > 0) {
+          this.loadVectores();
+        }
       },
       error: () => this.vectorLoading.set(false),
     });

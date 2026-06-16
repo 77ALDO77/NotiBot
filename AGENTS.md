@@ -13,11 +13,12 @@ Plataforma de noticias inteligentes para Lima y Callao. Backend + frontend + Pos
 | DB migrations | `backend/` | `uv run alembic upgrade head` |
 | Instalar deps Python | `backend/` | `uv sync` |
 
-- `.env` en `backend/` es obligatorio para desarrollo local (pydantic-settings lee del CWD). Contiene `DATABASE_URL` y `SECRET_KEY`. El `.env.example` de referencia está en la raíz del repo.
-- `opencode.json` y `.env` están en `.gitignore`.
-- Package manager frontend: `npm` (NO yarn/pnpm). Forzado en `package.json` (`packageManager: "npm@11.12.1"`) y `angular.json` (`packageManager: "npm"`).
+- `.env` en `backend/` es obligatorio para desarrollo local (pydantic-settings lee del CWD). Copiar desde `.env.example` (raíz del repo) a `backend/.env`. Contiene `DATABASE_URL` y `SECRET_KEY`.
+- `opencode.json`, `.env` y `backend/data/` están en `.gitignore`.
+- Package manager frontend: `npm` (NO yarn/pnpm/bun). Forzado en `package.json` (`packageManager: "npm@11.12.1"`) y `angular.json` (`packageManager: "npm"`). **Ignorar `frontend/bun.lock`** — es un artifact huérfano, no usar bun.
 - No hay CI/CD ni GitHub Actions.
 - No hay comandos de lint ni typecheck configurados (ni frontend ni backend).
+- Deps Docker: `uv sync --frozen`; deps local: `uv sync` (instala dev deps también).
 
 ## Arquitectura
 

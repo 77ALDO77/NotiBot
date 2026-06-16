@@ -24,6 +24,11 @@ export const routes: Routes = [
     canActivate: [AdminGuard],
   },
   {
+    path: 'admin/analytics',
+    loadComponent: () => import('./features/admin-analytics/admin-analytics').then(m => m.AdminAnalyticsComponent),
+    canActivate: [AdminGuard],
+  },
+  {
     path: '**',
     redirectTo: '',
   },

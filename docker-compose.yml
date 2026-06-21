@@ -35,6 +35,8 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:4200}
     ports:
       - "8000:8000"
+    volumes:
+      - ./backups:/app/backups
     depends_on:
       postgres:
         condition: service_healthy

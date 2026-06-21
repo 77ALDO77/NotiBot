@@ -107,7 +107,7 @@ interface Vector3DPoint {
   chunks_count?: number;
 }
 
-type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes';
+type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes' | 'backups';
 
 @Component({
   selector: 'app-admin',
@@ -501,10 +501,96 @@ type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes';
                       <td>{{ f.noticias_count }}</td>
                       <td>{{ f.confiabilidad }}</td>
                       <td>{{ f.activa ? '✓' : '✗' }}</td>
-                    </tr>
                   }
                 </tbody>
               </table>
+            </div>
+          </section>
+        }
+
+        @case ('backups') {
+          <section class="backups">
+            <div class="card backups__actions-card">
+              <div class="backups__header-row">
+                <h3>Gestión de Copias de Seguridad</h3>
+                <div class="backups__buttons">
+                  <button class="btn" (click)="createBackup()" [disabled]="backupActionLoading() || backupsLoading()">
+                    {{ backupActionLoading() ? 'Generando...' : 'Crear Copia de Seguridad' }}
+                  </button>
+                  
+                  <label class="btn btn--secondary btn-upload-label">
+                    Subir y Restaurar .sql.gz
+                    <input type="file" accept=".sql.gz" (change)="onBackupUpload($event)" [disabled]="backupActionLoading() || backupsLoading()" style="display: none;" />
+                  </label>
+                </div>
+              </div>
+              
+              <p class="backups__warning-text">
+                <strong>ADVERTENCIA:</strong> Restaurar una copia de seguridad reemplazará por completo la base de datos actual con los datos del respaldo. Esta acción no se puede deshacer.
+              </p>
+
+              @if (backupError()) {
+                <div class="alert alert--error">
+                  <span class="alert__icon">⚠️</span>
+                  <span class="alert__msg">{{ backupError() }}</span>
+                </div>
+              }
+              @if (backupSuccess()) {
+                <div class="alert alert--success">
+                  <span class="alert__icon">✓</span>
+                  <span class="alert__msg">{{ backupSuccess() }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="card">
+              <h3>Copias de Seguridad Disponibles en el Servidor</h3>
+              
+              @if (backupsLoading()) {
+                <div class="backups__loading-state">
+                  <span class="spinner"></span>
+                  <span>Cargando respaldos...</span>
+                </div>
+              } @else if (backups().length === 0) {
+                <div class="backups__empty-state">
+                  <span class="empty-icon">📁</span>
+                  <p>No se encontraron copias de seguridad en el servidor.</p>
+                  <p class="subtext">Haz click en "Crear Copia de Seguridad" para generar la primera.</p>
+                </div>
+              } @else {
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Nombre del Archivo</th>
+                      <th>Fecha de Creación</th>
+                      <th>Tamaño</th>
+                      <th class="td-actions">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (b of backups(); track b.filename) {
+                      <tr>
+                        <td class="td-mono td-filename">{{ b.filename }}</td>
+                        <td>{{ b.created_at }}</td>
+                        <td>{{ (b.size_bytes / 1024 / 1024).toFixed(2) }} MB</td>
+                        <td class="td-actions">
+                          <div class="action-buttons">
+                            <button class="btn-sm btn-action btn-action--download" (click)="downloadBackup(b.filename)" title="Descargar copia">
+                              📥 Descargar
+                            </button>
+                            <button class="btn-sm btn-action btn-action--restore" (click)="restoreBackup(b.filename)" [disabled]="backupActionLoading()" title="Restaurar base de datos">
+                              🔄 Restaurar
+                            </button>
+                            <button class="btn-sm btn-action btn-action--delete" (click)="deleteBackup(b.filename)" [disabled]="backupActionLoading()" title="Eliminar copia">
+                              🗑️ Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
             </div>
           </section>
         }
@@ -643,6 +729,33 @@ type Tab = 'dashboard' | 'noticias' | 'vectores' | 'scraping' | 'fuentes';
     .chunk-item__idx { font-size: 12px; font-weight: 600; color: var(--brand); }
     .chunk-item__tokens { font-size: 11px; color: var(--text2); }
     .chunk-item__text { margin: 0; font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+
+    .backups__header-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; }
+    .backups__buttons { display: flex; gap: 10px; align-items: center; }
+    .btn--secondary { background: #f3f4f6; color: var(--text); border: 1px solid var(--border); }
+    .btn--secondary:hover { background: #e5e7eb; }
+    .btn-upload-label { cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 35px; box-sizing: border-box; }
+    .backups__warning-text { font-size: 13px; color: #b45309; background: #fffbeb; border: 1px solid #fde8c4; padding: 10px 14px; border-radius: 8px; margin: 0 0 16px 0; line-height: 1.5; }
+    .alert { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; font-weight: 500; }
+    .alert--error { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+    .alert--success { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .backups__loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; gap: 12px; color: var(--text2); font-size: 14px; }
+    .backups__empty-state { text-align: center; padding: 40px 20px; color: var(--text2); }
+    .backups__empty-state p { margin: 8px 0; }
+    .backups__empty-state .subtext { font-size: 12px; opacity: 0.8; }
+    .empty-icon { font-size: 40px; display: block; margin-bottom: 12px; }
+    .td-filename { font-weight: 600; color: var(--brand); }
+    .td-actions { text-align: right; width: 320px; }
+    .action-buttons { display: flex; gap: 6px; justify-content: flex-end; }
+    .btn-action { font-weight: 600; border-radius: 6px; padding: 5px 10px; font-size: 12px; border: 1px solid transparent; cursor: pointer; transition: all 0.15s; }
+    .btn-action--download { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+    .btn-action--download:hover { background: #dcfce7; }
+    .btn-action--restore { background: #fff7ed; color: #ea580c; border-color: #ffedd5; }
+    .btn-action--restore:hover { background: #ffedd5; }
+    .btn-action--delete { background: #fdf2f2; color: #dc2626; border-color: #fde2e2; }
+    .btn-action--delete:hover { background: #fde2e2; }
+    .spinner { border: 3px solid #f3f3f3; border-top: 3px solid var(--brand); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   `],
 })
 export class AdminComponent implements OnInit {
@@ -654,9 +767,16 @@ export class AdminComponent implements OnInit {
     { id: 'vectores', label: 'Vectores 3D' },
     { id: 'scraping', label: 'Scraping' },
     { id: 'fuentes', label: 'Fuentes' },
+    { id: 'backups', label: 'Copias de Seguridad' },
   ];
 
   activeTab = signal<Tab>('dashboard');
+
+  backups = signal<any[]>([]);
+  backupsLoading = signal(false);
+  backupActionLoading = signal(false);
+  backupError = signal('');
+  backupSuccess = signal('');
 
   stats = signal<AdminStats>({
     total_noticias: 0, validadas: 0, chunks: 0, fuentes_activas: 0,
@@ -976,6 +1096,7 @@ export class AdminComponent implements OnInit {
       this.loadScraperStatus();
     }
     if (tab === 'vectores') this.loadVectores();
+    if (tab === 'backups') this.loadBackups();
   }
 
   async loadGraph() {
@@ -1189,6 +1310,123 @@ export class AdminComponent implements OnInit {
         }
       },
       error: () => this.vectorLoading.set(false),
+    });
+  }
+
+  loadBackups() {
+    this.backupsLoading.set(true);
+    this.backupError.set('');
+    this.http.get<any[]>(`${this.apiUrl}/backup/list`).subscribe({
+      next: (data) => {
+        this.backups.set(data);
+        this.backupsLoading.set(false);
+      },
+      error: (err) => {
+        this.backupError.set('Error al cargar copias de seguridad');
+        this.backupsLoading.set(false);
+      }
+    });
+  }
+
+  createBackup() {
+    this.backupActionLoading.set(true);
+    this.backupError.set('');
+    this.backupSuccess.set('');
+    this.http.post<any>(`${this.apiUrl}/backup/create`, {}).subscribe({
+      next: (res) => {
+        this.backupActionLoading.set(false);
+        this.backupSuccess.set('Copia de seguridad creada correctamente: ' + res.filename);
+        this.loadBackups();
+        setTimeout(() => this.backupSuccess.set(''), 5000);
+      },
+      error: (err) => {
+        this.backupActionLoading.set(false);
+        this.backupError.set('Error al crear copia de seguridad');
+      }
+    });
+  }
+
+  downloadBackup(filename: string) {
+    window.open(`${this.apiUrl}/backup/download/${filename}`, '_blank');
+  }
+
+  restoreBackup(filename: string) {
+    if (!confirm(`¿Estás seguro de que deseas restaurar la base de datos a partir de ${filename}? Se perderán todos los datos actuales.`)) {
+      return;
+    }
+    this.backupActionLoading.set(true);
+    this.backupError.set('');
+    this.backupSuccess.set('');
+    this.http.post<any>(`${this.apiUrl}/backup/restore/local/${filename}`, {}).subscribe({
+      next: (res) => {
+        this.backupActionLoading.set(false);
+        this.backupSuccess.set('Base de datos restaurada correctamente.');
+        this.loadStats();
+        setTimeout(() => this.backupSuccess.set(''), 5000);
+      },
+      error: (err) => {
+        this.backupActionLoading.set(false);
+        const errMsg = err.error?.detail || 'Error al restaurar copia de seguridad';
+        this.backupError.set(errMsg);
+      }
+    });
+  }
+
+  deleteBackup(filename: string) {
+    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente la copia de seguridad ${filename}?`)) {
+      return;
+    }
+    this.backupActionLoading.set(true);
+    this.backupError.set('');
+    this.backupSuccess.set('');
+    this.http.delete<any>(`${this.apiUrl}/backup/${filename}`).subscribe({
+      next: (res) => {
+        this.backupActionLoading.set(false);
+        this.backupSuccess.set('Copia de seguridad eliminada.');
+        this.loadBackups();
+        setTimeout(() => this.backupSuccess.set(''), 5000);
+      },
+      error: (err) => {
+        this.backupActionLoading.set(false);
+        this.backupError.set('Error al eliminar copia de seguridad');
+      }
+    });
+  }
+
+  onBackupUpload(event: any) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith('.sql.gz')) {
+      alert('Por favor, selecciona un archivo .sql.gz válido.');
+      return;
+    }
+    
+    if (!confirm('¿Estás seguro de que deseas restaurar la base de datos a partir de este archivo? Se sobreescribirán todos los datos actuales.')) {
+      return;
+    }
+    
+    this.backupActionLoading.set(true);
+    this.backupError.set('');
+    this.backupSuccess.set('');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    this.http.post<any>(`${this.apiUrl}/backup/restore/upload`, formData).subscribe({
+      next: (res) => {
+        this.backupActionLoading.set(false);
+        this.backupSuccess.set('Base de datos restaurada correctamente desde el archivo subido.');
+        this.loadStats();
+        event.target.value = '';
+        setTimeout(() => this.backupSuccess.set(''), 5000);
+      },
+      error: (err) => {
+        this.backupActionLoading.set(false);
+        const errMsg = err.error?.detail || 'Error al restaurar archivo subido';
+        this.backupError.set(errMsg);
+        event.target.value = '';
+      }
     });
   }
 }

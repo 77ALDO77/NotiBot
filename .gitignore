@@ -31,3 +31,6 @@ backend/data/
 data/*.sql
 data/*.sql.gz
 docs/database/*.sql.gz
+
+# Local backups
+backups/

@@ -258,3 +258,31 @@ async def get_word_frequency_by_section(
         })
 
     return {"scope": "by_section", "top": top, "sections": section_results}
+
+
+async def get_lengths_data(db: AsyncSession) -> list[dict]:
+    result = await db.execute(
+        text("""
+            SELECT 
+                length(n.titulo) as title_len,
+                array_length(regexp_split_to_array(trim(n.titulo), '\\s+'), 1) as title_words,
+                length(n.subtitulo) as subtitle_len,
+                nc.longitud_caracteres as content_len,
+                n.seccion_fuente as seccion
+            FROM public.noticias n
+            LEFT JOIN public.noticias_contenido nc ON n.id = nc.id_noticia
+            WHERE n.titulo IS NOT NULL AND trim(n.titulo) <> ''
+        """)
+    )
+    rows = result.all()
+    return [
+        {
+            "title_len": row[0],
+            "title_words": row[1] or 0,
+            "subtitle_len": row[2],
+            "content_len": row[3],
+            "seccion": row[4] or "Sin sección"
+        }
+        for row in rows
+    ]
+

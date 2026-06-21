@@ -37,6 +37,14 @@ interface LengthsResponse {
   contenido: LengthStat;
 }
 
+interface LengthsData {
+  title_len: number;
+  title_words: number;
+  subtitle_len: number | null;
+  content_len: number | null;
+  seccion: string | null;
+}
+
 interface WordFreqItem { word: string; count: number; pct: number }
 interface WordFrequencyResponse {
   scope: string;
@@ -57,7 +65,7 @@ interface SectionWordFrequencyResponse {
   sections: SectionWordFreq[];
 }
 
-type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
+type TabId = 'overview' | 'lengths' | 'words' | 'by-section' | 'wordcloud';
 
 @Component({
   selector: 'app-admin-analytics',
@@ -104,8 +112,8 @@ type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
               </div>
             </div>
 
-            <div class="charts-row">
-              <div class="card card--half">
+            <div class="charts-row--three">
+              <div class="card">
                 <h3 class="card__title">Por Alcance</h3>
                 <div class="bar-chart" id="chart-scope"></div>
                 <div class="bar-chart-legend">
@@ -118,9 +126,14 @@ type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
                 </div>
               </div>
 
-              <div class="card card--half">
+              <div class="card">
                 <h3 class="card__title">Por Provincia</h3>
                 <div class="bar-chart" id="chart-provincia"></div>
+              </div>
+
+              <div class="card">
+                <h3 class="card__title">Únicos vs Duplicados</h3>
+                <div class="pie-chart" id="chart-uniques-pie"></div>
               </div>
             </div>
 
@@ -185,6 +198,43 @@ type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
                 <span class="length-total">{{ lengths().contenido.total_rows | number }} artículos</span>
               </div>
             </div>
+
+            @if (lengthsLoading()) {
+              <div style="text-align: center; padding: 40px; color: var(--text2); font-size: 14px;">Cargando gráficos estadísticos de longitudes...</div>
+            }
+
+            <div [style.display]="lengthsLoading() ? 'none' : 'block'">
+              <div class="charts-row--three">
+                <div class="card">
+                  <h3 class="card__title">Distribución de Longitud de Títulos</h3>
+                  <div class="bar-chart" id="chart-hist-title-char"></div>
+                </div>
+                <div class="card">
+                  <h3 class="card__title">Distribución de Longitud de Subtítulos</h3>
+                  <div class="bar-chart" id="chart-hist-subtitle-char"></div>
+                </div>
+                <div class="card">
+                  <h3 class="card__title">Palabras por Título</h3>
+                  <div class="bar-chart" id="chart-hist-title-words"></div>
+                </div>
+              </div>
+
+              <div class="charts-row">
+                <div class="card card--half">
+                  <h3 class="card__title">Box Plot de Longitudes (Caracteres)</h3>
+                  <div class="bar-chart bar-chart--tall" id="chart-box-lengths"></div>
+                </div>
+                <div class="card card--half">
+                  <h3 class="card__title">Palabras por Título (Top 5 Secciones)</h3>
+                  <div class="bar-chart bar-chart--tall" id="chart-box-sections"></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <h3 class="card__title">Relación: Palabras vs Caracteres (Títulos)</h3>
+                <div class="bar-chart bar-chart--tall" id="chart-scatter-title"></div>
+              </div>
+            </div>
           </section>
         }
 
@@ -207,12 +257,19 @@ type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
               </div>
             </div>
 
-            <div class="card">
-              <div class="bar-chart bar-chart--tall" id="chart-words"></div>
+            <div class="charts-row">
+              <div class="card card--half">
+                <h3 class="card__title">Top {{ wordFreq().top }} palabras</h3>
+                <div class="bar-chart bar-chart--tall" id="chart-words"></div>
+              </div>
+              <div class="card card--half">
+                <h3 class="card__title">Distribución de Frecuencias (Log-Log)</h3>
+                <div class="bar-chart bar-chart--tall" id="chart-words-loglog"></div>
+              </div>
             </div>
 
             <div class="card">
-              <h3 class="card__title">Top {{ wordFreq().top }} palabras</h3>
+              <h3 class="card__title">Listado de palabras más comunes</h3>
               <div class="word-grid">
                 @for (w of wordFreq().words; track w.word) {
                   <div class="word-item">
@@ -268,6 +325,42 @@ type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
             }
           </section>
         }
+
+        @case ('wordcloud') {
+          <section class="analytics__section">
+            <div class="card">
+              <div class="filters">
+                <select [value]="wordcloudScope()" (change)="onWordcloudScopeChange($any($event.target).value)" class="select">
+                  <option value="all">Títulos + Subtítulos</option>
+                  <option value="titulos">Solo Títulos</option>
+                  <option value="subtitulos">Solo Subtítulos</option>
+                  <option value="seccion">Por Sección</option>
+                </select>
+                <select [value]="wordcloudTop()" (change)="onWordcloudTopChange(+$any($event.target).value)" class="select">
+                  <option value="30">30 palabras</option>
+                  <option value="50">50 palabras</option>
+                  <option value="80">80 palabras</option>
+                  <option value="120">120 palabras</option>
+                </select>
+                @if (wordcloudScope() === 'seccion') {
+                  <select [value]="wordcloudSection()" (change)="onWordcloudSectionChange($any($event.target).value)" class="select">
+                    @for (s of bySection().sections; track s.seccion) {
+                      <option [value]="s.seccion">{{ s.seccion || 'Sin sección' }}</option>
+                    }
+                  </select>
+                }
+                @if (wordcloudLoading()) {
+                  <span style="font-size: 13px; color: var(--text2); margin-left: 12px;">Cargando palabras...</span>
+                }
+              </div>
+            </div>
+
+            <div class="card" style="text-align: center;">
+              <h3 class="card__title">Nube de Palabras — {{ wordcloudTitle() }}</h3>
+              <div id="chart-wordcloud" style="min-height: 450px; background: #fff; border-radius: 8px;"></div>
+            </div>
+          </section>
+        }
       }
     </div>
   `,
@@ -311,8 +404,6 @@ type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
     .analytics__tab:hover { color: var(--brand); }
     .analytics__tab--active { color: var(--brand); border-bottom-color: var(--brand); }
 
-    .analytics__section { }
-
     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
     .stat-card {
       background: var(--card); padding: 20px; border-radius: 12px; text-align: center;
@@ -322,6 +413,7 @@ type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
     .stat-card__label { font-size: 13px; color: var(--text2); margin-top: 4px; }
 
     .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .charts-row--three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
 
     .card {
       background: var(--card); padding: 20px; border-radius: 12px;
@@ -333,6 +425,7 @@ type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
     .bar-chart { min-height: 160px; }
     .bar-chart--tall { min-height: 300px; }
     .bar-chart svg { display: block; }
+    .pie-chart { min-height: 180px; display: flex; align-items: center; justify-content: center; }
 
     .bar-chart-legend { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
     .bar-chart-legend__item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
@@ -363,6 +456,12 @@ type TabId = 'overview' | 'lengths' | 'words' | 'by-section';
     .word-item__word { font-size: 13px; font-weight: 500; flex: 1; }
     .word-item__count { font-size: 12px; color: var(--brand); font-weight: 600; min-width: 40px; text-align: right; }
     .word-item__pct { font-size: 11px; color: var(--text2); min-width: 45px; text-align: right; }
+
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .charts-row, .charts-row--three { grid-template-columns: 1fr; }
+      .lengths-grid { grid-template-columns: 1fr; }
+    }
   `],
 })
 export class AdminAnalyticsComponent implements OnInit {
@@ -373,6 +472,7 @@ export class AdminAnalyticsComponent implements OnInit {
     { id: 'lengths', label: 'Longitudes' },
     { id: 'words', label: 'Palabras' },
     { id: 'by-section', label: 'Por Sección' },
+    { id: 'wordcloud', label: 'Nube de Palabras' },
   ];
 
   activeTab = signal<TabId>('overview');
@@ -388,6 +488,9 @@ export class AdminAnalyticsComponent implements OnInit {
     contenido: { mean: 0, min: 0, max: 0, std: 0, median: 0, mean_words: 0, total_rows: 0 },
   });
 
+  lengthsData = signal<LengthsData[]>([]);
+  lengthsLoading = signal(false);
+
   wordScope = signal('all');
   wordTop = signal(50);
   wordFreq = signal<WordFrequencyResponse>({ scope: 'all', top: 50, total_articles: 0, words: [] });
@@ -398,6 +501,12 @@ export class AdminAnalyticsComponent implements OnInit {
   sectionLoading = signal(false);
 
   selectedSection = signal<SectionWordFreq | null>(null);
+
+  wordcloudScope = signal('all');
+  wordcloudTop = signal(50);
+  wordcloudSection = signal('');
+  wordcloudData = signal<WordFreqItem[]>([]);
+  wordcloudLoading = signal(false);
 
   constructor(private http: HttpClient) {}
 
@@ -412,10 +521,55 @@ export class AdminAnalyticsComponent implements OnInit {
 
   onTabChange(tab: TabId) {
     this.activeTab.set(tab);
-    if (tab === 'overview' && !this.overview().total_articles) this.loadOverview();
-    if (tab === 'lengths' && !this.lengths().titulo.total_rows) this.loadLengths();
-    if (tab === 'words' && !this.wordFreq().words.length) this.loadWordFreq();
-    if (tab === 'by-section' && !this.bySection().sections.length) this.loadBySection();
+    if (tab === 'overview') {
+      if (!this.overview().total_articles) {
+        this.loadOverview();
+      } else {
+        setTimeout(() => this.renderOverviewCharts(), 50);
+      }
+    }
+    if (tab === 'lengths') {
+      if (!this.lengths().titulo.total_rows) {
+        this.loadLengths();
+      } else {
+        setTimeout(() => this.renderLengthsCharts(), 50);
+      }
+    }
+    if (tab === 'words') {
+      if (!this.wordFreq().words.length) {
+        this.loadWordFreq();
+      } else {
+        setTimeout(() => {
+          this.renderHorizontalBars('chart-words', this.wordFreq().words, '#84CC16');
+          this.renderLogLogChart('chart-words-loglog', this.wordFreq().words);
+        }, 50);
+      }
+    }
+    if (tab === 'by-section') {
+      if (!this.bySection().sections.length) {
+        this.loadBySection();
+      } else {
+        setTimeout(() => this.updateSelectedSection(), 50);
+      }
+    }
+    if (tab === 'wordcloud') {
+      if (!this.bySection().sections.length) {
+        this.http.get<SectionWordFrequencyResponse>(
+          `${this.apiUrl}/word-frequency/by-section?top=${this.wordcloudTop()}`
+        ).subscribe(data => {
+          this.bySection.set(data);
+          if (data.sections.length && !this.wordcloudSection()) {
+            this.wordcloudSection.set(data.sections[0].seccion || '');
+          }
+          this.loadWordcloudData();
+        });
+      } else {
+        if (this.bySection().sections.length && !this.wordcloudSection()) {
+          this.wordcloudSection.set(this.bySection().sections[0].seccion || '');
+        }
+        this.loadWordcloudData();
+      }
+    }
   }
 
   onWordScopeChange(scope: string) {
@@ -448,18 +602,86 @@ export class AdminAnalyticsComponent implements OnInit {
   loadOverview() {
     this.http.get<OverviewResponse>(`${this.apiUrl}/overview`).subscribe(data => {
       this.overview.set(data);
-      setTimeout(() => {
-        this.renderHorizontalBars('chart-scope', data.by_scope.map(s => ({ word: s.scope, count: s.count, pct: 0 })), '#0EA5E9');
-        this.renderHorizontalBars('chart-provincia', data.by_provincia.map(p => ({ word: p.provincia || 'Sin provincia', count: p.count, pct: 0 })), '#8b5cf6');
-        this.renderHorizontalBars('chart-seccion', data.by_seccion.slice(0, 15).map(s => ({ word: s.seccion || 'Sin sección', count: s.count, pct: 0 })), '#3b82f6');
-        this.renderHorizontalBars('chart-categoria', data.by_categoria.map(c => ({ word: c.categoria || 'Sin categoría', count: c.count, pct: 0 })), '#f59e0b');
-        this.renderHorizontalBars('chart-distrito', data.by_distrito_top15.map(d => ({ word: d.distrito || 'Sin distrito', count: d.count, pct: 0 })), '#22c55e');
-      }, 50);
+      setTimeout(() => this.renderOverviewCharts(), 50);
     });
   }
 
+  private renderOverviewCharts() {
+    const data = this.overview();
+    if (!data.total_articles) return;
+
+    this.renderHorizontalBars('chart-scope', data.by_scope.map(s => ({ word: s.scope, count: s.count, pct: 0 })), '#0EA5E9');
+    this.renderHorizontalBars('chart-provincia', data.by_provincia.map(p => ({ word: p.provincia || 'Sin provincia', count: p.count, pct: 0 })), '#8b5cf6');
+    this.renderHorizontalBars('chart-seccion', data.by_seccion.slice(0, 15).map(s => ({ word: s.seccion || 'Sin sección', count: s.count, pct: 0 })), '#3b82f6');
+    this.renderHorizontalBars('chart-categoria', data.by_categoria.map(c => ({ word: c.categoria || 'Sin categoría', count: c.count, pct: 0 })), '#f59e0b');
+    this.renderHorizontalBars('chart-distrito', data.by_distrito_top15.map(d => ({ word: d.distrito || 'Sin distrito', count: d.count, pct: 0 })), '#22c55e');
+    this.renderUniquesPie('chart-uniques-pie', data.total_unique, data.total_duplicates);
+  }
+
   loadLengths() {
-    this.http.get<LengthsResponse>(`${this.apiUrl}/lengths`).subscribe(data => this.lengths.set(data));
+    this.lengthsLoading.set(true);
+    this.http.get<LengthsResponse>(`${this.apiUrl}/lengths`).subscribe(data => {
+      this.lengths.set(data);
+    });
+    this.http.get<LengthsData[]>(`${this.apiUrl}/lengths-data`).subscribe({
+      next: (data) => {
+        this.lengthsData.set(data);
+        this.lengthsLoading.set(false);
+        setTimeout(() => this.renderLengthsCharts(), 50);
+      },
+      error: () => {
+        this.lengthsLoading.set(false);
+      }
+    });
+  }
+
+  private renderLengthsCharts() {
+    const stats = this.lengths();
+    const raw = this.lengthsData();
+    if (!raw.length) return;
+
+    // 1. Histogram of title lengths (characters)
+    const titleChars = raw.map(d => d.title_len);
+    this.renderHistogram('chart-hist-title-char', titleChars, '#0EA5E9', 'Caracteres de Título', stats.titulo.mean || 0);
+
+    // 2. Histogram of subtitle lengths (characters)
+    const subtitleChars = raw.filter(d => d.subtitle_len !== null && d.subtitle_len > 0).map(d => d.subtitle_len as number);
+    this.renderHistogram('chart-hist-subtitle-char', subtitleChars, '#f59e0b', 'Caracteres de Subtítulo', stats.subtitulo.mean || 0);
+
+    // 3. Histogram of title word counts
+    const titleWords = raw.map(d => d.title_words);
+    this.renderHistogram('chart-hist-title-words', titleWords, '#22c55e', 'Palabras por Título', stats.titulo.mean_words || 0);
+
+    // 4. Box Plot comparing Title, Subtitle, and Content lengths
+    const subtitleLens = raw.filter(d => d.subtitle_len !== null && d.subtitle_len > 0).map(d => d.subtitle_len as number);
+    const contentLens = raw.filter(d => d.content_len !== null && d.content_len > 0).map(d => d.content_len as number);
+    this.renderBoxPlot('chart-box-lengths', [
+      { label: 'Títulos', values: titleChars },
+      { label: 'Subtítulos', values: subtitleLens },
+      { label: 'Contenido', values: contentLens }
+    ], '#8b5cf6', 'Caracteres');
+
+    // 5. Box Plot of Words per Title grouped by Top 5 Sections
+    const sectionCounts = raw.reduce((acc, curr) => {
+      const sec = curr.seccion || 'Sin sección';
+      acc[sec] = (acc[sec] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const top5Sections = Object.entries(sectionCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(entry => entry[0]);
+
+    const boxPlotSections = top5Sections.map(sec => {
+      const values = raw.filter(d => (d.seccion || 'Sin sección') === sec).map(d => d.title_words);
+      return { label: sec, values };
+    });
+    this.renderBoxPlot('chart-box-sections', boxPlotSections, '#84CC16', 'Palabras por Título');
+
+    // 6. Scatter Plot of Words vs Characters in Titles
+    const scatterData = raw.map(d => ({ x: d.title_words, y: d.title_len }));
+    this.renderScatterPlot('chart-scatter-title', scatterData, '#3b82f6', 'Número de palabras', 'Caracteres');
   }
 
   loadWordFreq() {
@@ -467,7 +689,10 @@ export class AdminAnalyticsComponent implements OnInit {
       `${this.apiUrl}/word-frequency?scope=${this.wordScope()}&top=${this.wordTop()}`
     ).subscribe(data => {
       this.wordFreq.set(data);
-      setTimeout(() => this.renderHorizontalBars('chart-words', data.words, '#84CC16'), 50);
+      setTimeout(() => {
+        this.renderHorizontalBars('chart-words', data.words, '#84CC16');
+        this.renderLogLogChart('chart-words-loglog', data.words);
+      }, 50);
     });
   }
 
@@ -481,6 +706,510 @@ export class AdminAnalyticsComponent implements OnInit {
       }
       this.updateSelectedSection();
     });
+  }
+
+  onWordcloudScopeChange(scope: string) {
+    this.wordcloudScope.set(scope);
+    this.loadWordcloudData();
+  }
+
+  onWordcloudTopChange(top: number) {
+    this.wordcloudTop.set(top);
+    this.loadWordcloudData();
+  }
+
+  onWordcloudSectionChange(section: string) {
+    this.wordcloudSection.set(section);
+    this.loadWordcloudData();
+  }
+
+  wordcloudTitle(): string {
+    const scope = this.wordcloudScope();
+    const top = this.wordcloudTop();
+    if (scope === 'titulos') return `Top ${top} Palabras en Títulos`;
+    if (scope === 'subtitulos') return `Top ${top} Palabras en Subtítulos`;
+    if (scope === 'seccion') return `Top ${top} Palabras en Sección: ${this.wordcloudSection() || 'Selecciona una sección'}`;
+    return `Top ${top} Palabras (Títulos + Subtítulos)`;
+  }
+
+  loadWordcloudData() {
+    const scope = this.wordcloudScope();
+    const top = this.wordcloudTop();
+
+    this.wordcloudLoading.set(true);
+
+    if (scope === 'seccion') {
+      const sec = this.wordcloudSection();
+      const found = this.bySection().sections.find(s => s.seccion === sec);
+      if (found) {
+        this.wordcloudData.set(found.words.slice(0, top));
+        this.wordcloudLoading.set(false);
+        setTimeout(() => this.renderWordcloud(), 50);
+      } else {
+        this.http.get<SectionWordFrequencyResponse>(
+          `${this.apiUrl}/word-frequency/by-section?top=${top}`
+        ).subscribe({
+          next: (data) => {
+            this.bySection.set(data);
+            const found2 = data.sections.find(s => s.seccion === sec);
+            this.wordcloudData.set(found2 ? found2.words.slice(0, top) : []);
+            this.wordcloudLoading.set(false);
+            setTimeout(() => this.renderWordcloud(), 50);
+          },
+          error: () => {
+            this.wordcloudLoading.set(false);
+          }
+        });
+      }
+    } else {
+      this.http.get<WordFrequencyResponse>(
+        `${this.apiUrl}/word-frequency?scope=${scope}&top=${top}`
+      ).subscribe({
+        next: (data) => {
+          this.wordcloudData.set(data.words);
+          this.wordcloudLoading.set(false);
+          setTimeout(() => this.renderWordcloud(), 50);
+        },
+        error: () => {
+          this.wordcloudLoading.set(false);
+        }
+      });
+    }
+  }
+
+
+  private async renderUniquesPie(containerId: string, unique: number, duplicate: number) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+
+    try {
+      const d3 = await import('d3');
+      el.innerHTML = '';
+
+      const width = el.clientWidth || 300;
+      const height = 180;
+      const radius = Math.min(width, height) / 2 - 10;
+
+      const svg = d3.select(`#${containerId}`)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .append('g')
+        .attr('transform', `translate(${width / 2},${height / 2})`);
+
+      const data = [
+        { label: 'Únicos', value: unique, color: '#2ecc71' },
+        { label: 'Duplicados', value: duplicate, color: '#e74c3c' }
+      ];
+
+      const pie = d3.pie<{ label: string; value: number; color: string }>()
+        .value(d => d.value)
+        .sort(null);
+
+      const arc = d3.arc<d3.PieArcDatum<{ label: string; value: number; color: string }>>()
+        .innerRadius(0)
+        .outerRadius(radius);
+
+      const arcs = svg.selectAll('.arc')
+        .data(pie(data))
+        .enter()
+        .append('g')
+        .attr('class', 'arc');
+
+      arcs.append('path')
+        .attr('d', arc)
+        .attr('fill', d => d.data.color)
+        .attr('stroke', '#fff')
+        .style('stroke-width', '2px')
+        .style('opacity', 0.85);
+
+      arcs.append('text')
+        .attr('transform', d => `translate(${arc.centroid(d)})`)
+        .attr('dy', '0.35em')
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#fff')
+        .attr('font-size', '12px')
+        .attr('font-weight', 'bold')
+        .text(d => {
+          const total = unique + duplicate;
+          const pct = total > 0 ? (d.data.value / total) * 100 : 0;
+          return pct > 10 ? `${pct.toFixed(1)}%` : '';
+        });
+
+    } catch (e) {
+      console.error('[Analytics] Pie chart render error:', e);
+    }
+  }
+
+  private async renderHistogram(containerId: string, values: number[], color: string, titleX: string, meanVal: number) {
+    const el = document.getElementById(containerId);
+    if (!el || !values.length) return;
+
+    try {
+      const d3 = await import('d3');
+      el.innerHTML = '';
+
+      const margin = { top: 20, right: 10, bottom: 35, left: 40 };
+      const width = el.clientWidth || 300;
+      const height = 180;
+      const innerWidth = width - margin.left - margin.right;
+      const innerHeight = height - margin.top - margin.bottom;
+
+      const svg = d3.select(`#${containerId}`)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+      const x = d3.scaleLinear()
+        .domain([0, d3.max(values) || 100])
+        .range([0, innerWidth]);
+
+      const histogram = d3.bin()
+        .domain(x.domain() as [number, number])
+        .thresholds(x.ticks(20));
+
+      const bins = histogram(values);
+
+      const y = d3.scaleLinear()
+        .domain([0, d3.max(bins, d => d.length) || 10])
+        .range([innerHeight, 0]);
+
+      g.selectAll('rect')
+        .data(bins)
+        .enter()
+        .append('rect')
+        .attr('x', d => x(d.x0 ?? 0) + 1)
+        .attr('y', d => y(d.length))
+        .attr('width', d => Math.max(0, x(d.x1 ?? 0) - x(d.x0 ?? 0) - 1))
+        .attr('height', d => innerHeight - y(d.length))
+        .style('fill', color)
+        .style('opacity', 0.7);
+
+      g.append('line')
+        .attr('x1', x(meanVal))
+        .attr('x2', x(meanVal))
+        .attr('y1', 0)
+        .attr('y2', innerHeight)
+        .attr('stroke', '#e74c3c')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '4,4');
+
+      g.append('text')
+        .attr('x', x(meanVal) + 5)
+        .attr('y', 10)
+        .attr('fill', '#e74c3c')
+        .attr('font-size', '10px')
+        .attr('font-weight', 'bold')
+        .text(`Media: ${meanVal.toFixed(1)}`);
+
+      g.append('g')
+        .attr('transform', `translate(0,${innerHeight})`)
+        .call(d3.axisBottom(x).ticks(5))
+        .attr('font-size', '10px')
+        .attr('font-family', 'Manrope, sans-serif');
+
+      g.append('g')
+        .call(d3.axisLeft(y).ticks(5))
+        .attr('font-size', '10px')
+        .attr('font-family', 'Manrope, sans-serif');
+
+      g.append('text')
+        .attr('x', innerWidth / 2)
+        .attr('y', innerHeight + margin.bottom - 4)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#6b7280')
+        .attr('font-size', '11px')
+        .attr('font-family', 'Manrope, sans-serif')
+        .text(titleX);
+
+    } catch (e) {
+      console.error('[Analytics] Histogram render error:', e);
+    }
+  }
+
+  private async renderBoxPlot(containerId: string, datasets: { label: string; values: number[] }[], color: string, titleY: string) {
+    const el = document.getElementById(containerId);
+    if (!el || !datasets.length) return;
+
+    try {
+      const d3 = await import('d3');
+      el.innerHTML = '';
+
+      const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+      const width = el.clientWidth || 500;
+      const height = 300;
+      const innerWidth = width - margin.left - margin.right;
+      const innerHeight = height - margin.top - margin.bottom;
+
+      const svg = d3.select(`#${containerId}`)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+      const x = d3.scaleBand()
+        .range([0, innerWidth])
+        .domain(datasets.map(d => d.label))
+        .padding(0.4);
+
+      g.append('g')
+        .attr('transform', `translate(0,${innerHeight})`)
+        .call(d3.axisBottom(x))
+        .attr('font-size', '11px')
+        .attr('font-family', 'Manrope, sans-serif')
+        .selectAll('text')
+        .style('text-anchor', datasets.length > 3 ? 'end' : 'middle')
+        .attr('transform', datasets.length > 3 ? 'rotate(-25)' : '');
+
+      const allValues = datasets.flatMap(d => d.values);
+      const yMax = d3.max(allValues) || 100;
+      const y = d3.scaleLinear()
+        .domain([0, yMax])
+        .range([innerHeight, 0]);
+
+      g.append('g')
+        .call(d3.axisLeft(y).ticks(5))
+        .attr('font-size', '10px')
+        .attr('font-family', 'Manrope, sans-serif');
+
+      datasets.forEach(d => {
+        const sorted = [...d.values].sort(d3.ascending);
+        if (sorted.length < 4) return;
+
+        const q1 = d3.quantile(sorted, 0.25) || 0;
+        const median = d3.quantile(sorted, 0.5) || 0;
+        const q3 = d3.quantile(sorted, 0.75) || 0;
+        const interQuantileRange = q3 - q1;
+        const minVal = Math.max(sorted[0], q1 - 1.5 * interQuantileRange);
+        const maxVal = Math.min(sorted[sorted.length - 1], q3 + 1.5 * interQuantileRange);
+
+        const xCenter = (x(d.label) || 0) + x.bandwidth() / 2;
+        const boxWidth = x.bandwidth();
+
+        g.append('line')
+          .attr('x1', xCenter)
+          .attr('x2', xCenter)
+          .attr('y1', y(minVal))
+          .attr('y2', y(maxVal))
+          .attr('stroke', '#374151')
+          .attr('stroke-width', 1.5);
+
+        g.append('rect')
+          .attr('x', x(d.label) || 0)
+          .attr('y', y(q3))
+          .attr('height', y(q1) - y(q3))
+          .attr('width', boxWidth)
+          .attr('stroke', '#374151')
+          .attr('stroke-width', 1.5)
+          .style('fill', color)
+          .style('opacity', 0.6);
+
+        g.append('line')
+          .attr('x1', x(d.label) || 0)
+          .attr('x2', (x(d.label) || 0) + boxWidth)
+          .attr('y1', y(median))
+          .attr('y2', y(median))
+          .attr('stroke', '#1e1b4b')
+          .attr('stroke-width', 2);
+
+        g.append('line')
+          .attr('x1', xCenter - boxWidth / 4)
+          .attr('x2', xCenter + boxWidth / 4)
+          .attr('y1', y(minVal))
+          .attr('y2', y(minVal))
+          .attr('stroke', '#374151');
+
+        g.append('line')
+          .attr('x1', xCenter - boxWidth / 4)
+          .attr('x2', xCenter + boxWidth / 4)
+          .attr('y1', y(maxVal))
+          .attr('y2', y(maxVal))
+          .attr('stroke', '#374151');
+      });
+
+      g.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', -innerHeight / 2)
+        .attr('y', -35)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#6b7280')
+        .attr('font-size', '11px')
+        .attr('font-family', 'Manrope, sans-serif')
+        .text(titleY);
+
+    } catch (e) {
+      console.error('[Analytics] Box plot render error:', e);
+    }
+  }
+
+  private async renderScatterPlot(containerId: string, data: { x: number; y: number }[], color: string, titleX: string, titleY: string) {
+    const el = document.getElementById(containerId);
+    if (!el || !data.length) return;
+
+    try {
+      const d3 = await import('d3');
+      el.innerHTML = '';
+
+      const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+      const width = el.clientWidth || 500;
+      const height = 300;
+      const innerWidth = width - margin.left - margin.right;
+      const innerHeight = height - margin.top - margin.bottom;
+
+      const svg = d3.select(`#${containerId}`)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+      const xMax = d3.max(data, d => d.x) || 100;
+      const yMax = d3.max(data, d => d.y) || 100;
+
+      const x = d3.scaleLinear().domain([0, xMax]).range([0, innerWidth]);
+      const y = d3.scaleLinear().domain([0, yMax]).range([innerHeight, 0]);
+
+      g.append('g')
+        .attr('transform', `translate(0,${innerHeight})`)
+        .call(d3.axisBottom(x))
+        .attr('font-size', '10px')
+        .attr('font-family', 'Manrope, sans-serif');
+
+      g.append('g')
+        .call(d3.axisLeft(y))
+        .attr('font-size', '10px')
+        .attr('font-family', 'Manrope, sans-serif');
+
+      g.selectAll('circle')
+        .data(data)
+        .enter()
+        .append('circle')
+        .attr('cx', d => x(d.x))
+        .attr('cy', d => y(d.y))
+        .attr('r', 3)
+        .style('fill', color)
+        .style('opacity', 0.4);
+
+      g.append('text')
+        .attr('x', innerWidth / 2)
+        .attr('y', innerHeight + margin.bottom - 4)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#6b7280')
+        .attr('font-size', '11px')
+        .attr('font-family', 'Manrope, sans-serif')
+        .text(titleX);
+
+      g.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', -innerHeight / 2)
+        .attr('y', -35)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#6b7280')
+        .attr('font-size', '11px')
+        .attr('font-family', 'Manrope, sans-serif')
+        .text(titleY);
+
+    } catch (e) {
+      console.error('[Analytics] Scatter plot render error:', e);
+    }
+  }
+
+  private async renderLogLogChart(containerId: string, data: { word: string; count: number }[]) {
+    const el = document.getElementById(containerId);
+    if (!el || !data.length) return;
+
+    try {
+      const d3 = await import('d3');
+      el.innerHTML = '';
+
+      const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+      const width = el.clientWidth || 500;
+      const height = 300;
+      const innerWidth = width - margin.left - margin.right;
+      const innerHeight = height - margin.top - margin.bottom;
+
+      const svg = d3.select(`#${containerId}`)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+      const plotData = data.map((d, i) => ({
+        rank: i + 1,
+        count: d.count,
+        word: d.word
+      }));
+
+      const x = d3.scaleLog()
+        .domain([1, plotData.length])
+        .range([0, innerWidth]);
+
+      const y = d3.scaleLog()
+        .domain([d3.min(plotData, d => d.count) || 1, d3.max(plotData, d => d.count) || 100])
+        .range([innerHeight, 0]);
+
+      g.append('g')
+        .attr('transform', `translate(0,${innerHeight})`)
+        .call(d3.axisBottom(x).ticks(5, ',d'))
+        .attr('font-size', '10px')
+        .attr('font-family', 'Manrope, sans-serif');
+
+      g.append('g')
+        .call(d3.axisLeft(y).ticks(5, ',d'))
+        .attr('font-size', '10px')
+        .attr('font-family', 'Manrope, sans-serif');
+
+      const line = d3.line<{ rank: number; count: number }>()
+        .x(d => x(d.rank))
+        .y(d => y(d.count));
+
+      g.append('path')
+        .datum(plotData)
+        .attr('fill', 'none')
+        .attr('stroke', '#0EA5E9')
+        .attr('stroke-width', 2)
+        .attr('d', line);
+
+      g.selectAll('circle')
+        .data(plotData)
+        .enter()
+        .append('circle')
+        .attr('cx', d => x(d.rank))
+        .attr('cy', d => y(d.count))
+        .attr('r', 4)
+        .style('fill', '#1e1b4b')
+        .style('stroke', '#0EA5E9')
+        .style('stroke-width', 1.5)
+        .style('cursor', 'pointer')
+        .append('title')
+        .text(d => `Palabra: "${d.word}"\nRango: ${d.rank}\nFrecuencia: ${d.count}`);
+
+      g.append('text')
+        .attr('x', innerWidth / 2)
+        .attr('y', innerHeight + margin.bottom - 4)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#6b7280')
+        .attr('font-size', '11px')
+        .attr('font-family', 'Manrope, sans-serif')
+        .text('Rango de palabra (Log)');
+
+      g.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', -innerHeight / 2)
+        .attr('y', -35)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#6b7280')
+        .attr('font-size', '11px')
+        .attr('font-family', 'Manrope, sans-serif')
+        .text('Frecuencia (Log)');
+
+    } catch (e) {
+      console.error('[Analytics] Log-log render error:', e);
+    }
   }
 
   private async renderHorizontalBars(containerId: string, data: { word: string; count: number }[], color: string) {
@@ -550,4 +1279,91 @@ export class AdminAnalyticsComponent implements OnInit {
       console.error('[Analytics] D3 render error:', e);
     }
   }
+
+  private async renderWordcloud() {
+    const containerId = 'chart-wordcloud';
+    const el = document.getElementById(containerId);
+    const words = this.wordcloudData();
+    if (!el || !words.length) return;
+
+    try {
+      const d3 = await import('d3');
+      el.innerHTML = '';
+
+      const width = el.clientWidth || 800;
+      const height = 450;
+
+      const svg = d3.select(`#${containerId}`)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      const g = svg.append('g').attr('transform', `translate(${width / 2},${height / 2})`);
+
+      const maxCount = d3.max(words, d => d.count) || 1;
+      const minCount = d3.min(words, d => d.count) || 1;
+
+      const fontScale = d3.scaleSqrt()
+        .domain([minCount, maxCount])
+        .range([12, 54]);
+
+      const colors = ['#1E1B4B', '#84CC16', '#0EA5E9', '#8b5cf6', '#f59e0b', '#3b82f6', '#22c55e', '#ec4899'];
+      const colorScale = d3.scaleOrdinal(colors);
+
+      const nodes = words.map((w, i) => {
+        const size = fontScale(w.count);
+        const wWidth = w.word.length * size * 0.6 + 8;
+        const wHeight = size + 6;
+        const r = Math.max(wWidth, wHeight) / 2;
+        return {
+          word: w.word,
+          count: w.count,
+          size,
+          r,
+          x: (Math.random() - 0.5) * 100,
+          y: (Math.random() - 0.5) * 100
+        };
+      });
+
+      const simulation = d3.forceSimulation<any>(nodes)
+        .force('x', d3.forceX(0).strength(0.12))
+        .force('y', d3.forceY(0).strength(0.12))
+        .force('collide', d3.forceCollide<any>(d => d.r).iterations(4))
+        .stop();
+
+      for (let i = 0; i < 200; ++i) simulation.tick();
+
+      g.selectAll('text')
+        .data(nodes)
+        .enter()
+        .append('text')
+        .attr('text-anchor', 'middle')
+        .attr('x', d => d.x)
+        .attr('y', d => d.y)
+        .style('font-family', 'Manrope, sans-serif')
+        .style('font-weight', 'bold')
+        .style('font-size', d => `${d.size}px`)
+        .style('fill', (d, i) => colorScale(i.toString()))
+        .style('opacity', 0.9)
+        .style('cursor', 'pointer')
+        .style('transition', 'transform 0.15s, opacity 0.15s')
+        .text(d => d.word)
+        .on('mouseover', function(event, d) {
+          d3.select(this)
+            .style('transform', 'scale(1.1)')
+            .style('opacity', 1.0);
+        })
+        .on('mouseout', function(event, d) {
+          d3.select(this)
+            .style('transform', 'scale(1)')
+            .style('opacity', 0.9);
+        })
+        .append('title')
+        .text(d => `Palabra: "${d.word}"\nFrecuencia: ${d.count} veces`);
+
+    } catch (e) {
+      console.error('[Analytics] Wordcloud render error:', e);
+    }
+  }
 }
+

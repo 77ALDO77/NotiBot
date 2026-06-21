@@ -17,6 +17,12 @@ async def analytics_lengths(db: AsyncSession = Depends(get_db)):
     return await service.get_length_stats(db)
 
 
+@router.get("/analytics/lengths-data")
+async def analytics_lengths_data(db: AsyncSession = Depends(get_db)):
+    return await service.get_lengths_data(db)
+
+
+
 @router.get("/analytics/word-frequency")
 async def analytics_word_frequency(
     db: AsyncSession = Depends(get_db),

@@ -100,7 +100,181 @@
   }
 }
 
-// ── Main Layout ───────────────────────────────────────────
-.main {
+// ── Body layout: 3 columnas ───────────────────────────────
+.body-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr 260px;
+  grid-template-areas: 'left feed right';
+  max-width: $sp-container-max;
+  margin: 0 auto;
   min-height: calc(100vh - 56px);
+  align-items: start;
+
+  // Tablet: ocultar sidebar derecho
+  @media (max-width: 1024px) {
+    grid-template-columns: 64px 1fr;
+    grid-template-areas: 'left feed';
+
+    .sidebar--right { display: none; }
+  }
+
+  // Mobile: ocultar ambos sidebars (solo feed)
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'feed';
+
+    .sidebar--left  { display: none; }
+    .sidebar--right { display: none; }
+  }
+}
+
+// ── Main (feed) ───────────────────────────────────────────
+.main {
+  grid-area: feed;
+  min-height: calc(100vh - 56px);
+}
+
+// ── Sidebars ──────────────────────────────────────────────
+.sidebar {
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+
+  &--left  { grid-area: left; }
+  &--right { grid-area: right; }
+}
+
+// ── Sidenav (sidebar izquierdo) ───────────────────────────
+.sidenav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: $sp-stack-lg $sp-stack-sm;
+
+  // En tablet, colapsar a solo íconos
+  @media (max-width: 1024px) {
+    padding: $sp-stack-lg 4px;
+    align-items: center;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: $radius-md;
+    font-family: $font-ui;
+    font-size: $fs-label-md;
+    font-weight: $fw-label-md;
+    color: $color-text-secondary;
+    text-decoration: none;
+    transition: background $transition-fast, color $transition-fast;
+
+    &:hover {
+      background: $color-surface-container;
+      color: $color-text-primary;
+    }
+
+    &--active {
+      background: $color-primary-fixed;
+      color: $color-on-primary-fixed;
+
+      .sidenav__icon { stroke: $color-brand; }
+    }
+
+    &--ai .sidenav__ai-dot {
+      margin-left: auto;
+    }
+
+    // Tablet: ocultar label, centrar ícono
+    @media (max-width: 1024px) {
+      padding: 10px;
+      gap: 0;
+
+      .sidenav__label  { display: none; }
+      .sidenav__ai-dot { display: none; }
+    }
+  }
+
+  &__icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    stroke: currentColor;
+    transition: stroke $transition-fast;
+  }
+
+  &__label {
+    flex: 1;
+  }
+
+  &__ai-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: $radius-full;
+    background: $color-ai;
+    box-shadow: $shadow-ai-glow;
+    flex-shrink: 0;
+  }
+}
+
+// ── Search panel (sidebar derecho) ───────────────────────
+.search-panel {
+  padding: $sp-stack-lg $sp-stack-md;
+  display: flex;
+  flex-direction: column;
+  gap: $sp-stack-sm;
+
+  &__label {
+    font-family: $font-ui;
+    font-size: $fs-label-sm;
+    font-weight: 600;
+    color: $color-text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
+  }
+
+  &__field {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  &__icon {
+    position: absolute;
+    left: 12px;
+    width: 16px;
+    height: 16px;
+    stroke: $color-outline;
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
+  &__input {
+    width: 100%;
+    padding: 9px 12px 9px 36px;
+    border: $border-default;
+    border-radius: $radius-md;
+    background: $color-surface-container-lowest;
+    font-family: $font-body;
+    font-size: $fs-label-md;
+    color: $color-text-primary;
+    outline: none;
+    transition: border-color $transition-fast, box-shadow $transition-fast;
+
+    &::placeholder { color: $color-outline; }
+
+    &:focus {
+      border-color: $color-brand;
+      box-shadow: 0 0 0 3px rgba($color-brand, 0.1);
+    }
+
+    // Quitar ícono nativo del tipo search en webkit
+    &::-webkit-search-decoration,
+    &::-webkit-search-cancel-button { display: none; }
+  }
 }

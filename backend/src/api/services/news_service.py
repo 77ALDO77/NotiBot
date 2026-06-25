@@ -67,10 +67,7 @@ def build_news_query(
     if date_to:
         stmt = stmt.where(Noticia.fecha_publicacion <= datetime.combine(date_to, datetime.max.time()))
     if q:
-        stmt = stmt.join(Noticia.contenido).where(
-            Noticia.titulo.ilike(f"%{q}%")
-            | NoticiaContenido.contenido_limpio.ilike(f"%{q}%")
-        )
+        stmt = stmt.where(Noticia.titulo.ilike(f"%{q}%"))
     if categoria_principal:
         stmt = stmt.where(Noticia.categoria_principal == categoria_principal)
 

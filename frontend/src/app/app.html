@@ -1,3 +1,4 @@
+<!-- ── Topbar ──────────────────────────────────────────────── -->
 <nav class="topbar">
   <div class="topbar__inner">
     <a routerLink="/" class="topbar__brand" aria-label="NotiBot Inicio">
@@ -5,9 +6,6 @@
       <span class="topbar__title">NotiBot</span>
     </a>
     <div class="topbar__nav">
-      <a routerLink="/" class="topbar__link" routerLinkActive="topbar__link--active" [routerLinkActiveOptions]="{exact:true}">
-        Portada
-      </a>
       <a routerLink="/chat" class="topbar__link topbar__link--ai" routerLinkActive="topbar__link--active">
         <span class="topbar__ai-dot"></span>
         IA Assistant
@@ -18,6 +16,62 @@
     </div>
   </div>
 </nav>
-<main class="main">
-  <router-outlet />
-</main>
+
+<!-- ── Body: sidebar-left | feed | sidebar-right ────────── -->
+<div class="body-layout">
+
+  <!-- Sidebar izquierdo: navegación -->
+  <aside class="sidebar sidebar--left">
+    <nav class="sidenav">
+      <!-- Inicio: navega a / Y hace scroll al tope -->
+      <a
+        routerLink="/"
+        class="sidenav__item"
+        routerLinkActive="sidenav__item--active"
+        [routerLinkActiveOptions]="{exact:true}"
+        (click)="scrollToTop()"
+        aria-label="Volver al inicio"
+      >
+        <svg class="sidenav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span class="sidenav__label">Inicio</span>
+      </a>
+
+      <a routerLink="/chat" class="sidenav__item sidenav__item--ai" routerLinkActive="sidenav__item--active">
+        <svg class="sidenav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span class="sidenav__label">IA Assistant</span>
+        <span class="sidenav__ai-dot"></span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Feed central -->
+  <main class="main">
+    <router-outlet />
+  </main>
+
+  <!-- Sidebar derecho: buscador -->
+  <aside class="sidebar sidebar--right">
+    <div class="search-panel">
+      <p class="search-panel__label">Buscar noticias</p>
+      <div class="search-panel__field">
+        <svg class="search-panel__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          class="search-panel__input"
+          type="search"
+          placeholder="Buscar..."
+          aria-label="Buscar noticias"
+          (input)="onSearch($event)"
+        />
+      </div>
+    </div>
+  </aside>
+
+</div>

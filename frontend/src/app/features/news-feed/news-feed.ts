@@ -1,7 +1,8 @@
-import { Component, signal, ElementRef, viewChild, afterNextRender, inject } from '@angular/core';
+import {Component,signal,ElementRef,viewChild,afterNextRender,inject,effect,} from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
+import { SearchService } from '../../services/search.service';
 
 interface NewsItem {
   id: number;
@@ -75,6 +76,7 @@ function timeAgo(dateStr: string | null): string {
 })
 export class NewsFeed {
   private http = inject(HttpClient);
+  private searchService = inject(SearchService);
 
   protected readonly articles = signal<(NewsItem & { reactions: ReturnType<typeof randomReactions>; timeAgo: string; sourceLabel: string })[]>([]);
   protected readonly total = signal(0);
@@ -88,7 +90,19 @@ export class NewsFeed {
   private sentinel = viewChild<ElementRef>('sentinel');
 
   constructor() {
+    // Carga inicial
     afterNextRender(() => this.loadMore());
+
+    // Reacciona a cambios del buscador: resetea el feed y recarga
+    effect(() => {
+      const _q = this.searchService.query(); // suscripción reactiva
+      this.reset();
+      // Espera un tick para que el reset se aplique antes de pedir datos
+      setTimeout(() => {
+        this.loadMore();
+        this.setupObserver();
+      }, 50);
+    });
   }
 
   ngAfterViewInit() {
@@ -112,24 +126,32 @@ export class NewsFeed {
   selectCategory(cat: string) {
     if (this.loading()) return;
     this.currentCategory.set(cat);
-    this.offset = 0;
-    this.articles.set([]);
-    this.hasMore.set(true);
+    this.reset();
     setTimeout(() => {
       this.loadMore();
       this.setupObserver();
     }, 50);
   }
 
+  private reset() {
+    this.offset = 0;
+    this.articles.set([]);
+    this.hasMore.set(true);
+  }
+
   private loadMore() {
-    if (this.loading()) return;
+    if (this.loading() || !this.hasMore()) return;
     this.loading.set(true);
 
     const params = new URLSearchParams();
     params.set('limit', String(this.pageSize));
     params.set('offset', String(this.offset));
+
     const cat = this.currentCategory();
     if (cat !== 'Todas') params.set('categoria', cat);
+
+    const q = this.searchService.query();
+    if (q) params.set('q', q);  // ← el backend RAG ya tiene GET /api/rag/search?q=
 
     this.http.get<NewsResponse>(`/api/news?${params}`).subscribe({
       next: (data) => {

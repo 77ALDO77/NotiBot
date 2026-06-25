@@ -1,9 +1,14 @@
 @use '../../../styles/tokens' as *;
 
 .feed {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: $sp-stack-lg $sp-margin-mobile;
+  // El grid de body-layout ya controla el ancho.
+  // Mantenemos solo el padding vertical y un max-width de seguridad.
+  max-width: 720px;
+  padding: $sp-stack-lg $sp-stack-lg;
+
+  @media (max-width: 640px) {
+    padding: $sp-stack-lg $sp-margin-mobile;
+  }
 }
 
 .feed__header {
@@ -31,7 +36,7 @@
   overflow-x: auto;
   padding: 8px 0 16px;
   position: sticky;
-  top: 0;
+  top: 56px; // Queda debajo del topbar (antes era top:0)
   background: linear-gradient(to bottom, $color-background 90%, transparent);
   z-index: 10;
   -webkit-overflow-scrolling: touch;
@@ -108,15 +113,15 @@
   align-items: center;
   justify-content: center;
 
-  &[data-cat="Política"] { background: linear-gradient(135deg, #fecaca, #fca5a5); }
-  &[data-cat="Sociedad"] { background: linear-gradient(135deg, #bfdbfe, #93c5fd); }
-  &[data-cat="Deportes"] { background: linear-gradient(135deg, #bbf7d0, #86efac); }
-  &[data-cat="Economía"] { background: linear-gradient(135deg, #c7d2fe, #a5b4fc); }
-  &[data-cat="Mundo"] { background: linear-gradient(135deg, #fde68a, #fcd34d); }
-  &[data-cat="Espectáculos"] { background: linear-gradient(135deg, #fbcfe8, #f9a8d4); }
-  &[data-cat="Opinión"] { background: linear-gradient(135deg, #e9d5ff, #c4b5fd); }
-  &[data-cat="Nacional"] { background: linear-gradient(135deg, #fed7aa, #fdba74); }
-  &[data-cat="Tecnología"] { background: linear-gradient(135deg, #a5f3fc, #67e8f9); }
+  &[data-cat="Política"]      { background: linear-gradient(135deg, #fecaca, #fca5a5); }
+  &[data-cat="Sociedad"]      { background: linear-gradient(135deg, #bfdbfe, #93c5fd); }
+  &[data-cat="Deportes"]      { background: linear-gradient(135deg, #bbf7d0, #86efac); }
+  &[data-cat="Economía"]      { background: linear-gradient(135deg, #c7d2fe, #a5b4fc); }
+  &[data-cat="Mundo"]         { background: linear-gradient(135deg, #fde68a, #fcd34d); }
+  &[data-cat="Espectáculos"]  { background: linear-gradient(135deg, #fbcfe8, #f9a8d4); }
+  &[data-cat="Opinión"]       { background: linear-gradient(135deg, #e9d5ff, #c4b5fd); }
+  &[data-cat="Nacional"]      { background: linear-gradient(135deg, #fed7aa, #fdba74); }
+  &[data-cat="Tecnología"]    { background: linear-gradient(135deg, #a5f3fc, #67e8f9); }
 }
 
 .card__placeholder-icon {
@@ -233,12 +238,12 @@
   border-radius: 4px;
   margin-bottom: 10px;
 
-  &--short { width: 30%; height: 12px; }
+  &--short  { width: 30%; height: 12px; }
   &--medium { width: 60%; }
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
+  0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
